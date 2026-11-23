@@ -1,0 +1,3501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCC Educational Software // CYBERPITCH 3D Wireframe Tactical Soccer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron & Rajdhani for Broadcast Sci-Fi Sports UI -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Cannon.js 0.6.2 Rigid Body Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <style>
+        :root {
+            --neon-green: #00ff66;
+            --neon-red: #ff2244;
+            --cyber-blue: #00d2ff;
+            --panel-bg: rgba(7, 11, 20, 0.82);
+        }
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #03060c;
+            font-family: 'Rajdhani', sans-serif;
+            color: #e2e8f0;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .font-display {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Broadcast Glass Panels */
+        .hud-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        .glow-green {
+            text-shadow: 0 0 12px rgba(0, 255, 102, 0.7);
+        }
+        .glow-red {
+            text-shadow: 0 0 12px rgba(255, 34, 68, 0.7);
+        }
+        .glow-blue {
+            text-shadow: 0 0 12px rgba(0, 210, 255, 0.7);
+        }
+        .cam-btn {
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .cam-btn.active {
+            background: linear-gradient(135deg, rgba(0, 255, 102, 0.25), rgba(0, 210, 255, 0.25));
+            border-color: #00ff66;
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.35);
+        }
+        /* CRT Scanline & Broadcast Vignette Overlay */
+        .broadcast-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+            background: 
+                radial-gradient(circle at 50% 50%, transparent 60%, rgba(2, 5, 12, 0.75) 100%),
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+        }
+        /* Replay REC Pulse */
+        @keyframes pulse-rec {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.92); }
+        }
+        .rec-dot {
+            animation: pulse-rec 1.1s infinite ease-in-out;
+        }
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.15);
+            height: 6px;
+            border-radius: 999px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00ff66;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ff66;
+        }
+        /* Custom Scrollbar for JSON Editor */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 102, 0.4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D WebGL Viewport -->
+    <div id="canvas-container"></div>
+
+    <!-- Broadcast Post-Process Vignette & Scanlines -->
+    <div class="broadcast-overlay" id="vignette-overlay"></div>
+
+    <!-- ==================== WORLD WIDE SOCCER CONTESTANT REGISTRATION SPLASH PAGE ==================== -->
+    <div id="registration-splash" class="fixed inset-0 z-50 flex items-center justify-center bg-[#02050c]/95 backdrop-blur-xl p-4">
+        <div class="hud-panel rounded-3xl w-full max-w-xl border-2 border-[#00ff66]/70 shadow-[0_0_70px_rgba(0,255,102,0.28)] p-6 md:p-8 relative overflow-hidden">
+            <!-- Decorative Top Cyber Glow Line -->
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#00ff66] via-[#00d2ff] to-[#ff2244]"></div>
+
+            <!-- Official Tournament Header -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 text-[11px] font-display font-bold tracking-widest mb-3">
+                    <span class="w-2 h-2 rounded-full bg-[#00ff66] animate-ping"></span>
+                    <span>WORLD WIDE SOCCER // GLOBAL TOURNAMENT</span>
+                </div>
+                <h1 class="font-display text-3xl md:text-4xl font-black tracking-wider text-white glow-green">
+                    RED MAN DUEL
+                </h1>
+                <p class="text-xs md:text-sm uppercase tracking-[0.2em] text-cyan-300 font-semibold mt-1">
+                    OFFICIAL 5-MINUTE REGULATION QUALIFIER
+                </p>
+                <p class="text-xs text-slate-400 mt-2 max-w-md mx-auto">
+                    Register your contestant credentials below. Your final goal tally at the <span class="text-emerald-300 font-bold">05:00</span> full-time whistle will be transmitted automatically to the global tournament standings.
+                </p>
+            </div>
+
+            <!-- Single-Attempt Lockout Banner (Shown if already completed on this device) -->
+            <div id="reg-locked-banner" class="hidden mb-5 rounded-2xl bg-rose-950/70 border border-rose-500/60 p-4 text-center">
+                <div class="font-display text-sm font-black tracking-wider text-rose-300">
+                    OFFICIAL TOURNAMENT ATTEMPT COMPLETED
+                </div>
+                <p id="reg-locked-details" class="text-xs text-slate-300 mt-1">
+                    Your official 05:00 match score has already been recorded on this device.
+                </p>
+            </div>
+
+            <!-- Registration Form -->
+            <form id="registration-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="reg-first-name" class="block text-[11px] font-display font-bold uppercase tracking-wider text-emerald-300 mb-1.5">
+                            FIRST NAME *
+                        </label>
+                        <input id="reg-first-name" type="text" required maxlength="40" autocomplete="given-name" placeholder="Enter First Name"
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-[#00ff66] focus:outline-none text-white text-sm font-semibold tracking-wide placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label for="reg-last-name" class="block text-[11px] font-display font-bold uppercase tracking-wider text-emerald-300 mb-1.5">
+                            LAST NAME *
+                        </label>
+                        <input id="reg-last-name" type="text" required maxlength="40" autocomplete="family-name" placeholder="Enter Last Name"
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-[#00ff66] focus:outline-none text-white text-sm font-semibold tracking-wide placeholder-slate-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="reg-country" class="block text-[11px] font-display font-bold uppercase tracking-wider text-cyan-300 mb-1.5">
+                        COUNTRY OF ORIGIN *
+                    </label>
+                    <select id="reg-country" required
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-[#00d2ff] focus:outline-none text-white text-sm font-semibold tracking-wide">
+                        <option value="" disabled selected>Select Your Country...</option>
+                    </select>
+                </div>
+
+                <!-- Match Rules & Controls Summary -->
+                <div class="rounded-xl bg-slate-900/75 border border-slate-800 p-3 text-[11px] text-slate-300 space-y-1">
+                    <div class="font-display font-bold text-cyan-300 tracking-wider uppercase text-[10px]">OFFICIAL MATCH RULES & CONTROLS</div>
+                    <div>• <span class="text-white font-semibold">Format:</span> One continuous <span class="text-emerald-300 font-bold">05:00</span> regulation match against <span class="text-rose-400 font-bold">Red Man Duel</span>.</div>
+                    <div>• <span class="text-white font-semibold">Controls:</span> <span class="font-mono-code text-emerald-300">WASD / Arrows</span> Move • <span class="font-mono-code text-emerald-300">Shift</span> Sprint • <span class="font-mono-code text-amber-300">Space</span> Power Shot • <span class="font-mono-code text-cyan-300">E / X</span> Lob / Slide Tackle.</div>
+                </div>
+
+                <div id="reg-error-msg" class="hidden text-xs font-mono-code text-rose-400 text-center"></div>
+
+                <button id="btn-enter-tournament" type="submit"
+                    class="w-full py-3.5 rounded-xl bg-[#00ff66] hover:bg-emerald-400 text-slate-950 font-display text-sm md:text-base font-black tracking-widest shadow-[0_0_30px_rgba(0,255,102,0.45)] transition active:scale-95">
+                    ENTER TOURNAMENT &amp; KICK OFF (05:00)
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== WORLD WIDE SOCCER OFFICIAL TOURNAMENT WATERMARK ==================== -->
+    <div id="wws-watermark" class="fixed top-20 right-4 md:right-8 z-10 pointer-events-none select-none opacity-85">
+        <div class="hud-panel rounded-xl px-3.5 py-2 border border-cyan-400/40 bg-slate-950/75 flex items-center space-x-3 shadow-[0_0_25px_rgba(0,210,255,0.2)]">
+            <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/25 to-cyan-500/25 border border-emerald-400/50">
+                <svg class="w-5 h-5 text-[#00ff66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" stroke-width="1.8"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.6 9h16.8M3.6 15h16.8M12 3a15.3 15.3 0 014 9 15.3 15.3 0 01-4 9 15.3 15.3 0 01-4-9 15.3 15.3 0 014-9z"/>
+                </svg>
+                <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#00ff66] animate-ping"></span>
+            </div>
+            <div class="text-right">
+                <div class="flex items-center justify-end space-x-1.5">
+                    <span class="text-[9px] font-mono-code uppercase tracking-widest px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">OFFICIAL FEED</span>
+                    <span class="font-display text-xs md:text-sm font-black tracking-wider text-white glow-blue">WORLD WIDE SOCCER</span>
+                </div>
+                <div class="text-[10px] font-mono-code tracking-widest uppercase text-cyan-300/90">
+                    RED MAN DUEL // GLOBAL TOURNAMENT SERIES
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== BROADCAST TOP SCOREBOARD BUG ==================== -->
+    <header class="fixed top-3 left-0 right-0 z-10 flex justify-between items-start px-4 md:px-8 pointer-events-none">
+        
+        <!-- Left: ESPN/EA Broadcast Score Bug -->
+        <div class="hud-panel rounded-xl px-4 py-2.5 flex items-center space-x-4 pointer-events-auto border-l-4 border-l-[#00ff66]">
+            <!-- Player 1 (Green) -->
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-8 rounded-sm bg-[#00ff66] shadow-[0_0_12px_#00ff66]"></div>
+                <div>
+                    <div id="hud-home-country" class="text-[10px] tracking-widest uppercase text-emerald-400 font-bold">HOME // CONTESTANT</div>
+                    <div id="hud-home-player" class="font-display text-sm md:text-base font-bold text-white tracking-wider">CCC EDUCATIONAL SOFTWARE</div>
+                </div>
+                <div id="score-green" class="font-display text-2xl md:text-3xl font-black text-[#00ff66] glow-green px-2">0</div>
+            </div>
+
+            <!-- Divider & Match Clock -->
+            <div class="flex flex-col items-center px-3 border-x border-slate-700/80">
+                <div class="flex items-center space-x-1.5">
+                    <span id="clock-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span id="match-clock" class="font-display text-lg md:text-xl font-bold text-white tracking-widest transition-colors">05:00</span>
+                </div>
+                <div id="possession-badge" class="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 font-semibold mt-0.5">
+                    BALL: NEUTRAL
+                </div>
+            </div>
+
+            <!-- Player 2 (Red AI) -->
+            <div class="flex items-center space-x-3">
+                <div id="score-red" class="font-display text-2xl md:text-3xl font-black text-[#ff2244] glow-red px-2">0</div>
+                <div class="text-right">
+                    <div id="ai-tier-label" class="text-[10px] tracking-widest uppercase text-rose-400 font-bold">CPU // PRO</div>
+                    <div class="font-display text-sm md:text-base font-bold text-white tracking-wider">Red Man Duel</div>
+                    <div id="ai-state-badge" class="font-mono-code text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 mt-0.5">RED MAN DUEL: PRESSING</div>
+                </div>
+                <div class="w-3 h-8 rounded-sm bg-[#ff2244] shadow-[0_0_12px_#ff2244]"></div>
+            </div>
+        </div>
+
+        <!-- Center Goal / Event Banner (Hidden unless triggered) -->
+        <div id="event-banner" class="hidden transform transition-all duration-300 scale-90 opacity-0 hud-panel rounded-2xl px-8 py-3 border-2 border-[#00ff66] shadow-[0_0_40px_rgba(0,255,102,0.4)] text-center">
+            <div id="event-title" class="font-display text-3xl md:text-4xl font-black tracking-widest text-white glow-green">GOAL!</div>
+            <div id="event-subtitle" class="text-xs uppercase tracking-[0.25em] text-cyan-300 font-bold mt-1">118 KM/H TOP CORNER STRIKE // LAUNCHING INSTANT REPLAY</div>
+        </div>
+
+        <!-- Right: Utility Controls (Replay, Record Video, Audio, Reset) -->
+        <div class="flex items-center space-x-2 pointer-events-auto">
+            <button id="btn-trigger-replay" class="hud-panel hover:bg-slate-800/90 active:scale-95 text-xs font-display font-bold tracking-wider px-3.5 py-2.5 rounded-xl flex items-center space-x-2 border border-cyan-500/40 text-cyan-300 transition">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 rec-dot"></span>
+                <span>INSTANT REPLAY (R)</span>
+            </button>
+            <button id="btn-record-video-top" class="hud-panel hover:bg-rose-950/80 active:scale-95 text-xs font-display font-bold tracking-wider px-3.5 py-2.5 rounded-xl flex items-center space-x-2 border border-rose-500/50 text-rose-300 transition" title="Record 60FPS Video Clip with World Wide Soccer Watermark (V)">
+                <span id="top-rec-indicator" class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span id="top-rec-label">REC VIDEO (V)</span>
+            </button>
+            <button id="btn-audio-toggle" class="hud-panel hover:bg-slate-800/90 active:scale-95 p-2.5 rounded-xl border border-slate-600/50 text-slate-300 transition" title="Toggle Stadium Synth Audio">
+                <svg id="icon-audio-on" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+            </button>
+            <div class="hud-panel text-xs font-display font-bold tracking-wider px-3.5 py-2.5 rounded-xl border border-emerald-500/40 text-emerald-300 flex items-center space-x-2" title="Official 5-Minute Tournament Regulation Match">
+                <span class="w-2 h-2 rounded-full bg-[#00ff66]"></span>
+                <span>OFFICIAL QUALIFIER</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== LIVE COLLAPSIBLE GOAL LOG FEED PANEL ==================== -->
+    <div id="goal-log-panel" class="fixed top-24 left-4 md:left-8 z-10 w-80 pointer-events-auto">
+        <div class="hud-panel rounded-xl overflow-hidden border border-slate-700/80 shadow-xl">
+            <button id="btn-toggle-goallog" class="w-full px-3.5 py-2 flex items-center justify-between bg-slate-900/90 hover:bg-slate-800/80 transition border-b border-slate-800">
+                <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-[#00ff66] shadow-[0_0_8px_#00ff66]"></span>
+                    <span class="font-display text-[11px] font-bold tracking-wider text-white">MATCH GOAL LOG</span>
+                    <span id="goal-log-count-badge" class="font-mono-code text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">0 GOALS</span>
+                </div>
+                <span id="goal-log-chevron" class="text-xs font-mono-code text-slate-400">▼</span>
+            </button>
+            <div id="goal-log-body" class="max-h-44 overflow-y-auto p-2.5 space-y-1.5 bg-slate-950/50">
+                <div id="goal-log-empty" class="text-[11px] text-slate-400 italic text-center py-2">
+                    No goals recorded yet — 05:00 match underway
+                </div>
+                <div id="goal-log-list" class="space-y-1.5"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FULL-TIME 5:00 MATCH SUMMARY & TROPHY MODAL ==================== -->
+    <div id="fulltime-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+        <div class="hud-panel rounded-2xl w-full max-w-2xl border-2 border-[#00ff66] shadow-[0_0_60px_rgba(0,255,102,0.3)] p-6 md:p-8 flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="text-center border-b border-slate-700/80 pb-4">
+                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[11px] font-display font-bold tracking-widest mb-2">
+                    <span>FINAL WHISTLE // FULL TIME (05:00)</span>
+                </div>
+                <h2 id="ft-winner-banner" class="font-display text-2xl md:text-3xl font-black tracking-wider text-white glow-green">
+                    CCC EDUCATIONAL SOFTWARE WINS!
+                </h2>
+                <p id="ft-winner-subtitle" class="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold mt-1">
+                    OFFICIAL 5-MINUTE REGULATION MATCH REPORT
+                </p>
+            </div>
+
+            <!-- Final Scoreboard Showcase -->
+            <div class="grid grid-cols-3 items-center my-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                <div class="text-center">
+                    <div id="ft-home-country" class="text-[10px] uppercase tracking-widest text-emerald-400 font-bold">HOME // CONTESTANT</div>
+                    <div id="ft-home-player" class="font-display text-xs md:text-sm font-bold text-white mt-0.5">CCC EDUCATIONAL SOFTWARE</div>
+                    <div id="ft-score-green" class="font-display text-4xl md:text-5xl font-black text-[#00ff66] glow-green mt-1">0</div>
+                </div>
+                <div class="flex flex-col items-center justify-center border-x border-slate-800 px-2">
+                    <span class="text-[10px] font-mono-code uppercase tracking-widest text-slate-400">FINAL SCORE</span>
+                    <span class="font-display text-lg font-bold text-cyan-300 my-1">VS</span>
+                    <span class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-slate-300">05:00 FULL TIME</span>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] uppercase tracking-widest text-rose-400 font-bold">AWAY // CPU</div>
+                    <div class="font-display text-xs md:text-sm font-bold text-white mt-0.5">RED MAN DUEL</div>
+                    <div id="ft-score-red" class="font-display text-4xl md:text-5xl font-black text-[#ff2244] glow-red mt-1">0</div>
+                </div>
+            </div>
+
+            <!-- Key Match Statistics Grid -->
+            <div class="grid grid-cols-4 gap-2.5 mb-5 text-center">
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">TOTAL GOALS</div>
+                    <div id="ft-stat-goals" class="font-display text-base font-black text-white mt-0.5">0</div>
+                </div>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">SHOTS (GRN / RED)</div>
+                    <div id="ft-stat-shots" class="font-display text-base font-black text-cyan-300 mt-0.5">0 / 0</div>
+                </div>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">TOP SHOT SPEED</div>
+                    <div id="ft-stat-topspeed" class="font-display text-base font-black text-amber-300 mt-0.5">0 KM/H</div>
+                </div>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">POSSESSION %</div>
+                    <div id="ft-stat-possession" class="font-display text-sm font-black text-emerald-300 mt-0.5">50% / 50%</div>
+                </div>
+            </div>
+
+            <!-- Chronological Goal Scoring Summary Table -->
+            <div class="flex-1 overflow-hidden flex flex-col bg-slate-950/80 border border-slate-800 rounded-xl mb-5">
+                <div class="px-4 py-2 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center">
+                    <span class="font-display text-[11px] font-bold tracking-wider text-cyan-300">CHRONOLOGICAL GOAL SCORING SUMMARY</span>
+                    <span class="font-mono-code text-[10px] text-slate-400">TIME // VELOCITY // DISTANCE</span>
+                </div>
+                <div id="ft-goal-table-body" class="overflow-y-auto p-3 space-y-1.5 max-h-44"></div>
+            </div>
+
+            <!-- Official Google Sheets Telemetry Transmission Status -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800">
+                <div class="flex items-center space-x-2">
+                    <span id="webhook-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span id="webhook-status-text" class="font-mono-code text-xs text-amber-300">
+                        TRANSMITTING OFFICIAL RESULT TO TOURNAMENT LEDGER...
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="btn-retry-submit" class="hidden px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400 text-cyan-200 font-display text-xs font-bold tracking-wider transition">
+                        RETRY SUBMISSION
+                    </button>
+                    <button id="btn-export-final-clip" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-display text-xs font-bold tracking-wider transition">
+                        OFFICIAL ATTEMPT LOCKED
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== INSTANT REPLAY SUITE OVERLAY ==================== -->
+    <div id="replay-hud" class="hidden fixed inset-x-0 top-20 z-20 flex flex-col items-center pointer-events-none px-4">
+        <div class="hud-panel rounded-2xl px-6 py-4 w-full max-w-3xl border-2 border-rose-500/70 shadow-[0_0_35px_rgba(255,34,68,0.3)] pointer-events-auto">
+            <!-- Top Row: Replay Status & Camera Switcher -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-700/80">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-3 h-3 rounded-full bg-rose-500 rec-dot shadow-[0_0_10px_#ff2244]"></span>
+                    <span class="font-display text-sm font-black tracking-widest text-white">BROADCAST INSTANT REPLAY // 6.0S BUFFER</span>
+                    <span id="replay-speed-badge" class="text-xs font-mono-code px-2 py-0.5 rounded bg-rose-500/20 border border-rose-400/40 text-rose-300">0.5x SLOW-MO</span>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-[11px] uppercase tracking-wider text-slate-400 mr-1">REPLAY CAM:</span>
+                    <button data-rep-cam="orbit" class="rep-cam-btn active text-xs font-bold px-2.5 py-1 rounded bg-cyan-500/20 border border-cyan-400 text-cyan-200">MATRIX ORBIT</button>
+                    <button data-rep-cam="striker" class="rep-cam-btn text-xs font-bold px-2.5 py-1 rounded bg-slate-800/80 border border-slate-600 text-slate-300">STRIKER CLOSEUP</button>
+                    <button data-rep-cam="goalline" class="rep-cam-btn text-xs font-bold px-2.5 py-1 rounded bg-slate-800/80 border border-slate-600 text-slate-300">GOAL-LINE CAM</button>
+                </div>
+            </div>
+
+            <!-- Middle Row: Scrubber Timeline -->
+            <div class="my-3 flex items-center space-x-3">
+                <span id="replay-frame-counter" class="font-mono-code text-xs text-emerald-400 w-20">FRM 000/360</span>
+                <input id="replay-scrubber" type="range" min="0" max="100" value="0" class="w-full">
+                <span id="replay-time-offset" class="font-mono-code text-xs text-slate-300 w-14 text-right">-6.0s</span>
+            </div>
+
+            <!-- Bottom Row: Playback Transport & Exit -->
+            <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center space-x-2">
+                    <button id="btn-rep-playpause" class="px-3.5 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-display text-xs font-bold tracking-wider hover:bg-emerald-500/30">
+                        PAUSE
+                    </button>
+                    <button data-speed="0.25" class="rep-speed-btn px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs font-bold text-slate-300 hover:border-cyan-400">0.25x</button>
+                    <button data-speed="0.5" class="rep-speed-btn px-2.5 py-1.5 rounded-lg bg-cyan-500/25 border border-cyan-400 text-xs font-bold text-white">0.50x</button>
+                    <button data-speed="1.0" class="rep-speed-btn px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs font-bold text-slate-300 hover:border-cyan-400">1.00x</button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button id="btn-record-replay-clip" class="px-3.5 py-1.5 rounded-lg bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-400 text-emerald-200 font-display text-xs font-bold tracking-wider flex items-center space-x-1.5 transition">
+                        <span id="rep-rec-dot" class="w-2 h-2 rounded-full bg-rose-500 rec-dot"></span>
+                        <span id="rep-rec-text">EXPORT REPLAY VIDEO (V)</span>
+                    </button>
+                    <button id="btn-exit-replay" class="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-display text-xs font-bold tracking-wider shadow-[0_0_15px_rgba(244,63,94,0.5)] transition">
+                        RESUME LIVE MATCH (ESC)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== BOTTOM HUD: TELEMETRY, POWER BAR & CAMERA DOCK ==================== -->
+    <footer class="fixed bottom-3 left-0 right-0 z-10 px-4 md:px-8 flex flex-col md:flex-row justify-between items-end gap-3 pointer-events-none">
+        
+        <!-- Left: Player Biometrics, Stamina, Shot Charge & Ball Telemetry -->
+        <div class="hud-panel rounded-xl p-3.5 w-full md:w-80 pointer-events-auto border-b-2 border-b-[#00ff66]">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-display text-xs font-bold tracking-wider text-emerald-400">CCC EDUCATIONAL SOFTWARE // KINEMATICS</span>
+                <span id="player-state-label" class="font-mono-code text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">IDLE STANCE</span>
+            </div>
+
+            <!-- Stamina Bar -->
+            <div class="mb-2.5">
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300 mb-1">
+                    <span>SPRINT CAPACITOR (SHIFT // ∞ UNLIMITED)</span>
+                    <span id="stamina-pct" class="font-mono-code text-emerald-400">100% ∞</span>
+                </div>
+                <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div id="stamina-bar" class="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-75" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Shot Power Charge Meter -->
+            <div class="mb-2.5">
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300 mb-1">
+                    <span>KINETIC STRIKE CHARGE (SPACE)</span>
+                    <span id="shot-power-pct" class="font-mono-code text-amber-400">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div id="shot-power-bar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-all duration-75" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Slide Tackle Cooldown Meter (Anti-Spam Lockout) -->
+            <div class="mb-3">
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300 mb-1">
+                    <span>SLIDE TACKLE CAPACITOR (E / X)</span>
+                    <span id="slide-cd-label" class="font-mono-code text-cyan-300">READY</span>
+                </div>
+                <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div id="slide-cd-bar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-75" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Ball Velocity & Spin Radar -->
+            <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-700/70 text-center">
+                <div class="bg-slate-900/70 rounded-lg p-1.5">
+                    <div class="text-[9px] text-slate-400 uppercase">BALL SPEED</div>
+                    <div id="telemetry-speed" class="font-display text-xs font-bold text-cyan-300">0 KM/H</div>
+                </div>
+                <div class="bg-slate-900/70 rounded-lg p-1.5">
+                    <div class="text-[9px] text-slate-400 uppercase">MAGNUS SPIN</div>
+                    <div id="telemetry-spin" class="font-display text-xs font-bold text-emerald-300">0.0 RPS</div>
+                </div>
+                <div class="bg-slate-900/70 rounded-lg p-1.5">
+                    <div class="text-[9px] text-slate-400 uppercase">PHYSICS STEP</div>
+                    <div id="telemetry-fps" class="font-display text-xs font-bold text-slate-200">60 HZ</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Controls Quick-Reference Bar -->
+        <div class="hidden xl:flex hud-panel rounded-xl px-4 py-2 items-center space-x-4 text-xs text-slate-300 pointer-events-auto">
+            <div><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-emerald-300 font-mono-code">WASD / ARROWS</kbd> Move</div>
+            <div><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-emerald-300 font-mono-code">SHIFT</kbd> Sprint</div>
+            <div><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-amber-300 font-mono-code">HOLD SPACE</kbd> Power Shot</div>
+            <div><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-cyan-300 font-mono-code">E / X</kbd> Lob Pass / Slide Tackle</div>
+            <div><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-rose-300 font-mono-code">C</kbd> Camera</div>
+        </div>
+
+        <!-- Right: Multi-Camera Broadcast Switcher Dock -->
+        <div class="hud-panel rounded-xl p-2.5 pointer-events-auto flex flex-col items-end">
+            <div class="flex items-center justify-between w-full mb-1.5 px-1">
+                <span class="text-[10px] font-display uppercase tracking-widest text-cyan-400 font-bold">CINEMA CAMERA SUITE (1-5)</span>
+                <span id="active-cam-indicator" class="text-[10px] font-mono-code text-emerald-300">AUTO-DIRECTOR: ON</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+                <button data-cam="1" class="cam-btn active px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-xs font-bold tracking-wider">
+                    1. BROADCAST
+                </button>
+                <button data-cam="2" class="cam-btn px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-xs font-bold tracking-wider">
+                    2. ACTION 3RD
+                </button>
+                <button data-cam="3" class="cam-btn px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-xs font-bold tracking-wider">
+                    3. LOW DOLLY
+                </button>
+                <button data-cam="4" class="cam-btn px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-xs font-bold tracking-wider">
+                    4. NET CAM
+                </button>
+                <button data-cam="5" class="cam-btn px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-xs font-bold tracking-wider">
+                    5. AUTO-DIRECTOR
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== APPLICATION JAVASCRIPT ==================== -->
+    <script>
+        /**************************************************************************
+         * 1. JSON ENGINE CONFIGURATION SCHEMA (COTS ARCHITECTURE)
+         **************************************************************************/
+        const DEFAULT_GAME_CONFIG = {
+            meta: {
+                title: "CCC Educational Software // CYBERPITCH 3D Wireframe Soccer",
+                developer: "CCC Educational Software",
+                homeTeam: "CCC Educational Software",
+                awayTeam: "Red Man Duel",
+                version: "3.1.0-WWS-GLOBAL-QUALIFIER",
+                matchDurationSeconds: 300,
+                watermarkTitle: "WORLD WIDE SOCCER // GLOBAL TOURNAMENT EDITION"
+            },
+            matchSettings: {
+                matchDurationSeconds: 300
+            },
+            playerPhysics: {
+                baseSpeed: 18.5,
+                sprintMultiplier: 1.65,
+                acceleration: 68.0,
+                staminaDrainRate: 0.0,
+                staminaRegenRate: 50.0,
+                unlimitedStamina: true,
+                playerBodyBounce: 0.75,
+                minSeparationDist: 1.22,
+                slideCooldownSeconds: 2.5,
+                slideBurstSpeed: 22.0
+            },
+            physics: {
+                gravityY: -24.0,
+                ballMass: 0.45,
+                ballRestitution: 0.72,
+                ballLinearDamping: 0.26,
+                ballAngularDamping: 0.48,
+                magnusEffectStrength: 0.038,
+                playerSpeed: 18.5,
+                sprintMultiplier: 1.65,
+                shotMaxImpulse: 25.5,
+                lobImpulseY: 10.8,
+                maxBallSpeed: 27.5,
+                maxBallSpinRps: 5.5,
+                ceilingHeight: 6.5,
+                outOfBoundsMargin: 1.6
+            },
+            aiOpponent: {
+                aiName: "Red Man Duel",
+                difficulty: "Pro", // "Rookie" | "Pro" | "All-Star"
+                aiBaseSpeed: 11.0,
+                aiSprintMultiplier: 1.35,
+                aiAcceleration: 48.0,
+                aiSpeedFactor: 0.55,
+                reactionSpeed: 0.92,
+                aggression: 0.85,
+                shotAccuracy: 0.88
+            },
+            visuals: {
+                playerWireframeColor: "#00ff66",
+                opponentWireframeColor: "#ff2244",
+                innerCoreOpacity: 0.72,
+                stadiumLightIntensity: 2.2,
+                fogDensity: 0.0085,
+                baseCameraFOV: 50
+            },
+            cameraSystem: {
+                defaultMode: 1,
+                smoothingFactor: 0.08,
+                sprintFovBoost: 10
+            }
+        };
+
+        // Deep-freeze tournament configuration so parameters are immutable during World Wide Soccer matches
+        function deepFreezeConfig(obj) {
+            Object.freeze(obj);
+            Object.getOwnPropertyNames(obj).forEach((prop) => {
+                if (obj[prop] !== null && (typeof obj[prop] === 'object' || typeof obj[prop] === 'function') && !Object.isFrozen(obj[prop])) {
+                    deepFreezeConfig(obj[prop]);
+                }
+            });
+            return obj;
+        }
+        const GAME_CONFIG = deepFreezeConfig(JSON.parse(JSON.stringify(DEFAULT_GAME_CONFIG)));
+
+        const TOURNAMENT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwavXpvsPPkP_ILeaHJPynmtSxyrpCKZcpLB6hvMxr7-_zqvHBL6TxqywKDaGKK5R6atw/exec";
+        const TOURNAMENT_LOCK_KEY = "wws_red_man_duel_official_attempt_v1";
+
+        const WORLD_COUNTRIES = [
+            "United States", "Canada", "United Kingdom", "Australia", "Germany", "France", "Spain", "Italy",
+            "Brazil", "Argentina", "Mexico", "Japan", "South Korea", "India", "Netherlands", "Portugal",
+            "Sweden", "Norway", "Denmark", "Finland", "Poland", "Ireland", "New Zealand", "South Africa",
+            "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Armenia",
+            "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium",
+            "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brunei",
+            "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon",
+            "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo",
+            "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Democratic Republic of the Congo",
+            "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador",
+            "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Gabon", "Gambia",
+            "Georgia", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana",
+            "Haiti", "Honduras", "Hungary", "Iceland", "Indonesia", "Iran", "Iraq", "Israel", "Jamaica",
+            "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia",
+            "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
+            "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands",
+            "Mauritania", "Mauritius", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro",
+            "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Nicaragua", "Niger",
+            "Nigeria", "North Macedonia", "Oman", "Pakistan", "Palau", "Palestine", "Panama",
+            "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Qatar", "Romania", "Russia", "Rwanda",
+            "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa",
+            "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles",
+            "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia",
+            "South Sudan", "Sri Lanka", "Sudan", "Suriname", "Switzerland", "Syria", "Taiwan",
+            "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago",
+            "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates",
+            "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen",
+            "Zambia", "Zimbabwe"
+        ];
+
+        /**************************************************************************
+         * 2. PROCEDURAL WEB AUDIO SYNTHESIS ENGINE (STADIUM & KICK SFX)
+         **************************************************************************/
+        class BroadcastAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.ambientGain = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                this.ctx = new AudioCtx();
+                this.startStadiumAmbience();
+            }
+
+            startStadiumAmbience() {
+                if (!this.ctx) return;
+                // Filtered pink-noise stadium atmosphere hum
+                const bufferSize = this.ctx.sampleRate * 2;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                let b0 = 0, b1 = 0, b2 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.997 * b0 + white * 0.029;
+                    b1 = 0.985 * b1 + white * 0.032;
+                    b2 = 0.950 * b2 + white * 0.048;
+                    data[i] = (b0 + b1 + b2) * 0.15;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                noise.loop = true;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 320;
+                filter.Q.value = 0.7;
+
+                this.ambientGain = this.ctx.createGain();
+                this.ambientGain.gain.value = this.enabled ? 0.18 : 0;
+
+                noise.connect(filter);
+                filter.connect(this.ambientGain);
+                this.ambientGain.connect(this.ctx.destination);
+                noise.start();
+            }
+
+            playKick(powerRatio = 0.5) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                // Sub-bass punchy kick thud
+                osc.type = 'triangle';
+                const startFreq = 130 + powerRatio * 90;
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(28, now + 0.16);
+
+                gain.gain.setValueAtTime(0.45 + powerRatio * 0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.19);
+            }
+
+            playPostClang() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                [420, 685, 1120].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = idx === 0 ? 'sine' : 'square';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.2 / (idx + 1), now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.56);
+                });
+            }
+
+            playWhistle() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const lfo = this.ctx.createOscillator();
+                const lfoGain = this.ctx.createGain();
+                const mainGain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2850, now);
+
+                // Referee trill modulation
+                lfo.frequency.setValueAtTime(42, now);
+                lfoGain.gain.setValueAtTime(110, now);
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc.frequency);
+
+                mainGain.gain.setValueAtTime(0.01, now);
+                mainGain.gain.linearRampToValueAtTime(0.18, now + 0.04);
+                mainGain.gain.setValueAtTime(0.18, now + 0.35);
+                mainGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+                osc.connect(mainGain);
+                mainGain.connect(this.ctx.destination);
+                osc.start(now);
+                lfo.start(now);
+                osc.stop(now + 0.52);
+                lfo.stop(now + 0.52);
+            }
+
+            playGoalRoar() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                this.playWhistle();
+                if (this.ambientGain) {
+                    const now = this.ctx.currentTime;
+                    this.ambientGain.gain.setValueAtTime(0.18, now);
+                    this.ambientGain.gain.linearRampToValueAtTime(0.65, now + 0.25);
+                    this.ambientGain.gain.exponentialRampToValueAtTime(0.18, now + 3.2);
+                }
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+                if (this.ambientGain && this.ctx) {
+                    this.ambientGain.gain.setValueAtTime(this.enabled ? 0.18 : 0, this.ctx.currentTime);
+                }
+                return this.enabled;
+            }
+        }
+
+        const audioFX = new BroadcastAudioEngine();
+
+        /**************************************************************************
+         * 3. FULL STANDING ARTICULATED WIREFRAME HUMANOID CLASS
+         *    Builds an anatomically proportioned hierarchical 3D soccer player
+         *    with dual-layer hologram occlusion + bright neon wireframe cage.
+         **************************************************************************/
+        class WireframeSoccerPlayer {
+            constructor(scene, hexColor, isAI = false) {
+                this.scene = scene;
+                this.color = new THREE.Color(hexColor);
+                this.isAI = isAI;
+
+                // Root Group positioned at ground level (y = 0)
+                this.root = new THREE.Group();
+                this.scene.add(this.root);
+
+                // Shared Dual-Layer Hologram Materials
+                this.wireMaterial = new THREE.MeshBasicMaterial({
+                    color: this.color,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.95
+                });
+
+                this.coreMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x050914,
+                    emissive: this.color,
+                    emissiveIntensity: 0.22,
+                    transparent: true,
+                    opacity: GAME_CONFIG.visuals.innerCoreOpacity,
+                    shininess: 90,
+                    polygonOffset: true,
+                    polygonOffsetFactor: 1,
+                    polygonOffsetUnits: 1
+                });
+
+                this.jointGlowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.65
+                });
+
+                // Kinematic Animation State
+                this.walkCycle = 0;
+                this.kickTimer = 0;
+                this.kickLeg = 'right';
+                this.slideTimer = 0;
+                this.celebrateTimer = 0;
+                this.currentAction = 'IDLE STANCE';
+                this.stamina = 100;
+                this.facingAngle = isAI ? -Math.PI / 2 : Math.PI / 2;
+
+                this.joints = {};
+                this.buildAnatomicalHierarchy();
+                this.buildSelectionRing();
+            }
+
+            // Creates a dual-layer mesh (dark glossy inner silhouette + crisp outer neon wireframe)
+            createDualMesh(geometry, isJoint = false) {
+                const group = new THREE.Group();
+                const core = new THREE.Mesh(geometry, this.coreMaterial);
+                core.castShadow = true;
+                const wire = new THREE.Mesh(geometry, isJoint ? this.jointGlowMaterial : this.wireMaterial);
+                // Slightly scale wireframe cage outward for crisp sci-fi line art
+                wire.scale.setScalar(1.015);
+                group.add(core);
+                group.add(wire);
+                return group;
+            }
+
+            buildAnatomicalHierarchy() {
+                // Pelvis / Hips Center at standing height y = 1.05m
+                this.joints.pelvis = new THREE.Group();
+                this.joints.pelvis.position.set(0, 1.05, 0);
+                this.root.add(this.joints.pelvis);
+
+                const pelvisGeo = new THREE.CylinderGeometry(0.20, 0.17, 0.22, 10, 2);
+                this.joints.pelvis.add(this.createDualMesh(pelvisGeo));
+
+                // Spine / Lower & Upper Torso
+                this.joints.spine = new THREE.Group();
+                this.joints.spine.position.set(0, 0.12, 0);
+                this.joints.pelvis.add(this.joints.spine);
+
+                // Athletic V-taper chest cage
+                const torsoGeo = new THREE.CylinderGeometry(0.29, 0.19, 0.56, 12, 4);
+                torsoGeo.scale(1.15, 1.0, 0.68);
+                const torsoMesh = this.createDualMesh(torsoGeo);
+                torsoMesh.position.y = 0.28;
+                this.joints.spine.add(torsoMesh);
+
+                // Glowing Energy Core inside Chest
+                const coreSphereGeo = new THREE.IcosahedronGeometry(0.11, 1);
+                const coreSphere = new THREE.Mesh(coreSphereGeo, new THREE.MeshBasicMaterial({
+                    color: this.color,
+                    wireframe: true
+                }));
+                coreSphere.position.set(0, 0.34, 0.03);
+                this.joints.spine.add(coreSphere);
+                this.joints.chestCore = coreSphere;
+
+                // Neck & Sculpted Wireframe Head
+                this.joints.neck = new THREE.Group();
+                this.joints.neck.position.set(0, 0.60, 0);
+                this.joints.spine.add(this.joints.neck);
+
+                const neckGeo = new THREE.CylinderGeometry(0.075, 0.085, 0.12, 8, 1);
+                this.joints.neck.add(this.createDualMesh(neckGeo, true));
+
+                const headGeo = new THREE.IcosahedronGeometry(0.165, 2);
+                headGeo.scale(0.88, 1.08, 0.95);
+                const headMesh = this.createDualMesh(headGeo);
+                headMesh.position.set(0, 0.19, 0.02);
+                this.joints.neck.add(headMesh);
+
+                // Visor Band across Face to clearly show forward orientation
+                const visorGeo = new THREE.BoxGeometry(0.24, 0.055, 0.16);
+                const visorMesh = new THREE.Mesh(visorGeo, new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    wireframe: false,
+                    transparent: true,
+                    opacity: 0.85
+                }));
+                visorMesh.position.set(0, 0.20, 0.10);
+                this.joints.neck.add(visorMesh);
+
+                // Build Left & Right Articulated Arms
+                ['left', 'right'].forEach(side => {
+                    const sign = side === 'left' ? 1 : -1;
+
+                    // Shoulder Pivot
+                    const shoulder = new THREE.Group();
+                    shoulder.position.set(sign * 0.34, 0.50, 0);
+                    this.joints.spine.add(shoulder);
+
+                    const deltoidGeo = new THREE.SphereGeometry(0.085, 8, 6);
+                    shoulder.add(this.createDualMesh(deltoidGeo, true));
+
+                    // Upper Arm
+                    const upperArmGeo = new THREE.CylinderGeometry(0.068, 0.055, 0.34, 8, 2);
+                    const upperArm = this.createDualMesh(upperArmGeo);
+                    upperArm.position.y = -0.17;
+                    shoulder.add(upperArm);
+
+                    // Elbow Pivot
+                    const elbow = new THREE.Group();
+                    elbow.position.set(0, -0.34, 0);
+                    shoulder.add(elbow);
+
+                    const elbowJointGeo = new THREE.SphereGeometry(0.058, 6, 6);
+                    elbow.add(this.createDualMesh(elbowJointGeo, true));
+
+                    // Forearm + Hand
+                    const forearmGeo = new THREE.CylinderGeometry(0.054, 0.042, 0.32, 8, 2);
+                    const forearm = this.createDualMesh(forearmGeo);
+                    forearm.position.y = -0.16;
+                    elbow.add(forearm);
+
+                    const handGeo = new THREE.BoxGeometry(0.06, 0.10, 0.08);
+                    const hand = this.createDualMesh(handGeo, true);
+                    hand.position.y = -0.34;
+                    elbow.add(hand);
+
+                    this.joints[`${side}Shoulder`] = shoulder;
+                    this.joints[`${side}Elbow`] = elbow;
+                });
+
+                // Build Left & Right Articulated Legs (Hip -> Thigh -> Knee -> Calf -> Ankle -> Cleat Foot)
+                ['left', 'right'].forEach(side => {
+                    const sign = side === 'left' ? 1 : -1;
+
+                    // Hip Pivot
+                    const hip = new THREE.Group();
+                    hip.position.set(sign * 0.145, -0.05, 0);
+                    this.joints.pelvis.add(hip);
+
+                    const hipJointGeo = new THREE.SphereGeometry(0.095, 8, 6);
+                    hip.add(this.createDualMesh(hipJointGeo, true));
+
+                    // Athletic Quad / Thigh
+                    const thighGeo = new THREE.CylinderGeometry(0.105, 0.078, 0.46, 10, 3);
+                    const thigh = this.createDualMesh(thighGeo);
+                    thigh.position.y = -0.23;
+                    hip.add(thigh);
+
+                    // Knee Pivot
+                    const knee = new THREE.Group();
+                    knee.position.set(0, -0.46, 0);
+                    hip.add(knee);
+
+                    const kneeJointGeo = new THREE.SphereGeometry(0.075, 8, 6);
+                    knee.add(this.createDualMesh(kneeJointGeo, true));
+
+                    // Calf / Shin
+                    const calfGeo = new THREE.CylinderGeometry(0.076, 0.052, 0.45, 10, 3);
+                    const calf = this.createDualMesh(calfGeo);
+                    calf.position.y = -0.225;
+                    knee.add(calf);
+
+                    // Ankle & Soccer Boot / Foot
+                    const ankle = new THREE.Group();
+                    ankle.position.set(0, -0.46, 0);
+                    knee.add(ankle);
+
+                    const footGeo = new THREE.BoxGeometry(0.11, 0.075, 0.27);
+                    const foot = this.createDualMesh(footGeo);
+                    foot.position.set(0, -0.03, 0.065);
+                    ankle.add(foot);
+
+                    this.joints[`${side}Hip`] = hip;
+                    this.joints[`${side}Knee`] = knee;
+                    this.joints[`${side}Ankle`] = ankle;
+                });
+            }
+
+            buildSelectionRing() {
+                // Tactical HUD ring projected on the turf beneath the standing player
+                const ringGeo = new THREE.RingGeometry(0.58, 0.72, 32);
+                ringGeo.rotateX(-Math.PI / 2);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: this.color,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.65
+                });
+                this.groundRing = new THREE.Mesh(ringGeo, ringMat);
+                this.groundRing.position.y = 0.02;
+                this.root.add(this.groundRing);
+            }
+
+            setWireframeColor(hex) {
+                this.color.set(hex);
+                this.wireMaterial.color.copy(this.color);
+                this.coreMaterial.emissive.copy(this.color);
+                this.groundRing.material.color.copy(this.color);
+                if (this.joints.chestCore) {
+                    this.joints.chestCore.material.color.copy(this.color);
+                }
+            }
+
+            triggerKick(leg = 'right') {
+                this.kickTimer = 1.0;
+                this.kickLeg = leg;
+                this.currentAction = 'KINETIC STRIKE';
+            }
+
+            triggerSlide() {
+                if (this.slideTimer <= 0) {
+                    this.slideTimer = 1.0;
+                    this.currentAction = 'SLIDE TACKLE';
+                }
+            }
+
+            triggerCelebration() {
+                this.celebrateTimer = 3.0;
+                this.currentAction = 'GOAL CELEBRATION';
+            }
+
+            // Procedural Inverse-Kinematics & Trigonometric Biomechanical Pose Update
+            updateKinematics(dt, velocityVec, isSprinting) {
+                const speed = Math.hypot(velocityVec.x, velocityVec.z);
+
+                // Smoothly rotate character root toward movement direction
+                if (speed > 0.35) {
+                    const targetAngle = Math.atan2(velocityVec.x, velocityVec.z);
+                    let diff = targetAngle - this.facingAngle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    this.facingAngle += diff * Math.min(1, dt * 14);
+                }
+                this.root.rotation.y = this.facingAngle;
+
+                // Rotate chest hologram core
+                if (this.joints.chestCore) {
+                    this.joints.chestCore.rotation.y += dt * 3.5;
+                    this.joints.chestCore.rotation.x += dt * 2.0;
+                }
+
+                // 1. Check Goal Celebration Pose
+                if (this.celebrateTimer > 0) {
+                    this.celebrateTimer -= dt;
+                    const pulse = Math.sin( performance.now() * 0.012 );
+                    this.joints.pelvis.position.y = 1.08 + Math.abs(pulse) * 0.18;
+                    this.joints.spine.rotation.x = -0.18;
+                    this.joints.leftShoulder.rotation.x = -2.6 + pulse * 0.25;
+                    this.joints.rightShoulder.rotation.x = -2.6 - pulse * 0.25;
+                    this.joints.leftShoulder.rotation.z = 0.35;
+                    this.joints.rightShoulder.rotation.z = -0.35;
+                    this.joints.leftHip.rotation.x = -0.25;
+                    this.joints.rightHip.rotation.x = 0.25;
+                    this.joints.leftKnee.rotation.x = 0.4;
+                    this.joints.rightKnee.rotation.x = 0.4;
+                    return;
+                }
+
+                // 2. Check Slide Tackle Pose
+                if (this.slideTimer > 0) {
+                    this.slideTimer = Math.max(0, this.slideTimer - dt * 2.3);
+                    const s = Math.sin(this.slideTimer * Math.PI);
+                    this.joints.pelvis.position.y = 1.05 - s * 0.68;
+                    this.joints.pelvis.rotation.x = -s * 1.05;
+                    this.joints.spine.rotation.x = s * 0.35;
+                    // Extend lead leg forward, tuck trailing leg
+                    this.joints.rightHip.rotation.x = -s * 0.55;
+                    this.joints.rightKnee.rotation.x = s * 0.1;
+                    this.joints.leftHip.rotation.x = s * 0.65;
+                    this.joints.leftKnee.rotation.x = s * 1.45;
+                    this.joints.leftShoulder.rotation.x = 0.6 * s;
+                    this.joints.rightShoulder.rotation.x = -0.8 * s;
+                    return;
+                } else {
+                    this.joints.pelvis.rotation.x = 0;
+                }
+
+                // 3. Stride Cycle & Sprinting Biomechanics
+                const strideFreq = isSprinting ? 1.45 : 1.05;
+                if (speed > 0.25) {
+                    this.walkCycle += dt * speed * strideFreq;
+                    this.currentAction = isSprinting ? 'MAX SPRINT' : 'TACTICAL RUN';
+                } else {
+                    // Idle breathing oscillation
+                    this.walkCycle += dt * 2.2;
+                    if (this.kickTimer <= 0) this.currentAction = 'IDLE STANCE';
+                }
+
+                const runBlend = Math.min(1, speed / 10);
+                const phase = this.walkCycle;
+
+                // Vertical pelvis bounce & athletic forward lean
+                const verticalBob = speed > 0.25
+                    ? Math.abs(Math.sin(phase)) * 0.09 * runBlend
+                    : Math.sin(phase) * 0.018;
+                this.joints.pelvis.position.y = 1.05 + verticalBob;
+                this.joints.pelvis.rotation.y = Math.sin(phase) * 0.12 * runBlend;
+
+                // Forward torso lean proportional to speed & sprint
+                const targetLean = runBlend * (isSprinting ? 0.32 : 0.18);
+                this.joints.spine.rotation.x = targetLean;
+                this.joints.spine.rotation.y = -Math.sin(phase) * 0.16 * runBlend;
+                this.joints.neck.rotation.x = -targetLean * 0.65;
+
+                // Hip & Knee Running Swing
+                const hipAmp = 0.88 * runBlend;
+                const leftSin = Math.sin(phase);
+                const rightSin = Math.sin(phase + Math.PI);
+
+                this.joints.leftHip.rotation.x = -leftSin * hipAmp;
+                this.joints.rightHip.rotation.x = -rightSin * hipAmp;
+
+                // Knees only bend backward (+x rotation) during stride recovery
+                this.joints.leftKnee.rotation.x = Math.max(0.08, Math.sin(phase - 0.65) * 1.35 * runBlend);
+                this.joints.rightKnee.rotation.x = Math.max(0.08, Math.sin(phase + Math.PI - 0.65) * 1.35 * runBlend);
+
+                // Ankle flex
+                this.joints.leftAnkle.rotation.x = Math.cos(phase) * 0.25 * runBlend;
+                this.joints.rightAnkle.rotation.x = Math.cos(phase + Math.PI) * 0.25 * runBlend;
+
+                // Counter-swinging Arms & Elbows
+                this.joints.leftShoulder.rotation.x = -rightSin * 0.75 * runBlend;
+                this.joints.rightShoulder.rotation.x = -leftSin * 0.75 * runBlend;
+                this.joints.leftShoulder.rotation.z = 0.14;
+                this.joints.rightShoulder.rotation.z = -0.14;
+                this.joints.leftElbow.rotation.x = -0.45 - Math.max(0, rightSin) * 0.65 * runBlend;
+                this.joints.rightElbow.rotation.x = -0.45 - Math.max(0, leftSin) * 0.65 * runBlend;
+
+                // 4. Procedural Kick Wind-up & Follow-Through Override
+                if (this.kickTimer > 0) {
+                    this.kickTimer = Math.max(0, this.kickTimer - dt * 3.4);
+                    // t goes from 0 (start of kick) to 1 (end of follow-through)
+                    const t = 1.0 - this.kickTimer;
+                    const hip = this.joints[`${this.kickLeg}Hip`];
+                    const knee = this.joints[`${this.kickLeg}Knee`];
+
+                    if (t < 0.32) {
+                        // Backswing wind-up
+                        const w = t / 0.32;
+                        hip.rotation.x = 0.75 * w;
+                        knee.rotation.x = 1.35 * w;
+                    } else {
+                        // Explosive forward snap & follow-through
+                        const f = (t - 0.32) / 0.68;
+                        const snap = Math.sin(f * Math.PI);
+                        hip.rotation.x = -1.28 * snap;
+                        knee.rotation.x = Math.max(0, 0.35 * (1 - f));
+                        this.joints.spine.rotation.x = -0.22 * snap;
+                    }
+                }
+            }
+
+            // Captures complete articulated pose for the 6-second Instant Replay buffer
+            serializePose() {
+                return {
+                    px: this.root.position.x,
+                    py: this.root.position.y,
+                    pz: this.root.position.z,
+                    ry: this.root.rotation.y,
+                    pelvisY: this.joints.pelvis.position.y,
+                    pelvisRx: this.joints.pelvis.rotation.x,
+                    spineRx: this.joints.spine.rotation.x,
+                    spineRy: this.joints.spine.rotation.y,
+                    lHipRx: this.joints.leftHip.rotation.x,
+                    rHipRx: this.joints.rightHip.rotation.x,
+                    lKneeRx: this.joints.leftKnee.rotation.x,
+                    rKneeRx: this.joints.rightKnee.rotation.x,
+                    lShRx: this.joints.leftShoulder.rotation.x,
+                    rShRx: this.joints.rightShoulder.rotation.x,
+                    lElbRx: this.joints.leftElbow.rotation.x,
+                    rElbRx: this.joints.rightElbow.rotation.x
+                };
+            }
+
+            // Restores articulated pose during Instant Replay playback
+            applySerializedPose(pose) {
+                this.root.position.set(pose.px, pose.py, pose.pz);
+                this.root.rotation.y = pose.ry;
+                this.joints.pelvis.position.y = pose.pelvisY;
+                this.joints.pelvis.rotation.x = pose.pelvisRx;
+                this.joints.spine.rotation.x = pose.spineRx;
+                this.joints.spine.rotation.y = pose.spineRy;
+                this.joints.leftHip.rotation.x = pose.lHipRx;
+                this.joints.rightHip.rotation.x = pose.rHipRx;
+                this.joints.leftKnee.rotation.x = pose.lKneeRx;
+                this.joints.rightKnee.rotation.x = pose.rKneeRx;
+                this.joints.leftShoulder.rotation.x = pose.lShRx;
+                this.joints.rightShoulder.rotation.x = pose.rShRx;
+                this.joints.leftElbow.rotation.x = pose.lElbRx;
+                this.joints.rightElbow.rotation.x = pose.rElbRx;
+            }
+        }
+
+        /**************************************************************************
+         * 4. MAIN GAME APPLICATION CONTROLLER (THREE.JS + CANNON.JS + REPLAY)
+         **************************************************************************/
+        class CyberPitchGame {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.clock = new THREE.Clock();
+
+                // Pitch Dimensions (Meters)
+                this.pitchLength = 64; // X: -32 to +32
+                this.pitchWidth = 40;  // Z: -20 to +20
+                this.goalWidth = 9.0;  // Z: -4.5 to +4.5
+                this.goalHeight = 3.4;
+                this.goalDepth = 2.8;
+
+                // Match State (5-Minute Regulation Countdown = 300 Seconds)
+                this.scoreGreen = 0;
+                this.scoreRed = 0;
+                const initialDuration = (GAME_CONFIG.matchSettings && GAME_CONFIG.matchSettings.matchDurationSeconds)
+                    || GAME_CONFIG.meta.matchDurationSeconds
+                    || 300;
+                this.matchDurationSeconds = initialDuration;
+                this.matchTimeRemaining = initialDuration;
+                this.isFullTime = false;
+                this.isRegistered = false;
+                this.contestant = {
+                    firstName: "",
+                    lastName: "",
+                    country: ""
+                };
+                this.scoreSubmitted = false;
+                this.goalCooldown = 0;
+                this.greenSlideCooldown = 0;
+                this.possession = 'NEUTRAL';
+
+                // Goal Tracking & Match Telemetry History
+                this.goalHistory = [];
+                this.lastTouchPosition = new THREE.Vector3(0, 0, 0);
+                this.shotsGreen = 0;
+                this.shotsRed = 0;
+                this.topShotSpeedKmh = 0;
+                this.possessionTimeGreen = 0.001;
+                this.possessionTimeRed = 0.001;
+
+                // Input State
+                this.keys = {};
+                this.isChargingShot = false;
+                this.shotCharge = 0;
+
+                // Multi-Camera System State
+                this.cameraMode = GAME_CONFIG.cameraSystem.defaultMode; // 1..5
+                this.currentLookAt = new THREE.Vector3(0, 1, 0);
+                this.autoDirectorTimer = 0;
+                this.autoDirectorCut = 'wide';
+
+                // Instant Replay 6-Second Ring Buffer (360 frames @ 60Hz)
+                this.maxReplayFrames = 360;
+                this.replayBuffer = [];
+                this.isReplaying = false;
+                this.replayPaused = false;
+                this.replayIndex = 0;
+                this.replaySpeed = 0.5;
+                this.replayCamMode = 'orbit';
+                this.replayOrbitAngle = 0;
+
+                // Deformable Goal Nets & Particle Systems
+                this.nets = [];
+                this.particles = [];
+                this.ballTrailPoints = [];
+
+                this.initThreeScene();
+                this.initStadiumEnvironment();
+                this.initCannonPhysics();
+                this.initEntities();
+                this.initParticleSystems();
+                this.initRegistrationSplash();
+                this.bindEvents();
+            }
+
+            initRegistrationSplash() {
+                const countrySelect = document.getElementById('reg-country');
+                if (countrySelect) {
+                    WORLD_COUNTRIES.forEach(country => {
+                        const opt = document.createElement('option');
+                        opt.value = country;
+                        opt.textContent = country;
+                        countrySelect.appendChild(opt);
+                    });
+                }
+
+                // Check single-attempt tournament lockout in localStorage
+                try {
+                    const savedRaw = localStorage.getItem(TOURNAMENT_LOCK_KEY);
+                    if (savedRaw) {
+                        const saved = JSON.parse(savedRaw);
+                        const lockedBanner = document.getElementById('reg-locked-banner');
+                        const lockedDetails = document.getElementById('reg-locked-details');
+                        const formEl = document.getElementById('registration-form');
+                        if (lockedBanner && lockedDetails && formEl) {
+                            lockedDetails.textContent =
+                                `Contestant ${saved.firstName} ${saved.lastName} (${saved.country}) recorded ${saved.scoreGreen} Goal${saved.scoreGreen === 1 ? '' : 's'} (Final: ${saved.scoreGreen} - ${saved.scoreRed}).`;
+                            lockedBanner.classList.remove('hidden');
+                            formEl.classList.add('hidden');
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    // Ignore storage read errors in restricted contexts
+                }
+
+                const form = document.getElementById('registration-form');
+                const errEl = document.getElementById('reg-error-msg');
+                if (form) {
+                    form.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const firstName = document.getElementById('reg-first-name').value.trim();
+                        const lastName = document.getElementById('reg-last-name').value.trim();
+                        const country = document.getElementById('reg-country').value.trim();
+
+                        if (!firstName || !lastName || !country) {
+                            if (errEl) {
+                                errEl.textContent = "Please complete First Name, Last Name, and Country of Origin.";
+                                errEl.classList.remove('hidden');
+                            }
+                            return;
+                        }
+
+                        if (errEl) errEl.classList.add('hidden');
+                        this.contestant = { firstName, lastName, country };
+                        this.isRegistered = true;
+
+                        // Update Top Scoreboard & Full-Time Modal with Contestant Identity
+                        const fullNameUpper = `${firstName} ${lastName}`.toUpperCase();
+                        const countryUpper = `HOME // ${country.toUpperCase()}`;
+                        const hudPlayer = document.getElementById('hud-home-player');
+                        const hudCountry = document.getElementById('hud-home-country');
+                        if (hudPlayer) hudPlayer.textContent = fullNameUpper;
+                        if (hudCountry) hudCountry.textContent = countryUpper;
+
+                        const ftPlayer = document.getElementById('ft-home-player');
+                        const ftCountry = document.getElementById('ft-home-country');
+                        if (ftPlayer) ftPlayer.textContent = fullNameUpper;
+                        if (ftCountry) ftCountry.textContent = countryUpper;
+
+                        // Hide Splash Gate & Kick Off the 5-Minute Match
+                        const splash = document.getElementById('registration-splash');
+                        if (splash) splash.classList.add('hidden');
+
+                        this.resetPositions();
+                        this.clock.getDelta(); // Flush accumulated idle delta before kickoff
+                        audioFX.init();
+                        audioFX.playWhistle();
+                    });
+                }
+            }
+
+            async submitTournamentScore() {
+                const statusDot = document.getElementById('webhook-status-dot');
+                const statusText = document.getElementById('webhook-status-text');
+                const retryBtn = document.getElementById('btn-retry-submit');
+
+                if (statusDot) statusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+                if (statusText) {
+                    statusText.textContent = 'TRANSMITTING OFFICIAL RESULT TO TOURNAMENT LEDGER...';
+                    statusText.className = 'font-mono-code text-xs text-amber-300';
+                }
+                if (retryBtn) retryBtn.classList.add('hidden');
+
+                const payload = {
+                    firstName: this.contestant.firstName,
+                    lastName: this.contestant.lastName,
+                    country: this.contestant.country,
+                    scoreGreen: this.scoreGreen,
+                    scoreRed: this.scoreRed,
+                    topShotSpeedKmh: this.topShotSpeedKmh
+                };
+
+                try {
+                    await fetch(TOURNAMENT_WEBHOOK_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    this.scoreSubmitted = true;
+
+                    // Lock single official attempt in localStorage upon completion
+                    try {
+                        localStorage.setItem(TOURNAMENT_LOCK_KEY, JSON.stringify({
+                            ...payload,
+                            submittedAt: new Date().toISOString()
+                        }));
+                    } catch (e) {}
+
+                    if (statusDot) statusDot.className = 'w-2.5 h-2.5 rounded-full bg-[#00ff66]';
+                    if (statusText) {
+                        statusText.textContent = `✓ OFFICIAL SCORE (${this.scoreGreen} GOALS) RECORDED FOR ${this.contestant.firstName.toUpperCase()} ${this.contestant.lastName.toUpperCase()} (${this.contestant.country.toUpperCase()})`;
+                        statusText.className = 'font-mono-code text-xs text-emerald-300 font-bold';
+                    }
+                } catch (err) {
+                    if (statusDot) statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                    if (statusText) {
+                        statusText.textContent = '✗ NETWORK ERROR — CLICK RETRY SUBMISSION TO LOG SCORE';
+                        statusText.className = 'font-mono-code text-xs text-rose-400 font-bold';
+                    }
+                    if (retryBtn) retryBtn.classList.remove('hidden');
+                }
+            }
+
+            initThreeScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x03060c);
+                this.scene.fog = new THREE.FogExp2(0x03060c, GAME_CONFIG.visuals.fogDensity);
+
+                this.camera = new THREE.PerspectiveCamera(
+                    GAME_CONFIG.visuals.baseCameraFOV,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    220
+                );
+                this.camera.position.set(0, 18, 28);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.container.appendChild(this.renderer.domElement);
+            }
+
+            initStadiumEnvironment() {
+                // Ambient & Hemisphere Fill
+                const hemiLight = new THREE.HemisphereLight(0x1e3a8a, 0x040814, 0.65);
+                this.scene.add(hemiLight);
+
+                // 4 Corner Stadium Floodlight Towers with Volumetric Cones & Dynamic Shadows
+                this.floodLights = [];
+                const towerCoords = [
+                    [-36, 26, -24],
+                    [36, 26, -24],
+                    [-36, 26, 24],
+                    [36, 26, 24]
+                ];
+
+                towerCoords.forEach(([x, y, z], idx) => {
+                    const spot = new THREE.SpotLight(
+                        idx % 2 === 0 ? 0xdbeafe : 0xe0f2fe,
+                        GAME_CONFIG.visuals.stadiumLightIntensity
+                    );
+                    spot.position.set(x, y, z);
+                    spot.angle = Math.PI / 3.2;
+                    spot.penumbra = 0.65;
+                    spot.decay = 1.4;
+                    spot.distance = 120;
+                    spot.castShadow = idx < 2; // Cast shadows from main broadcast side towers
+                    if (spot.castShadow) {
+                        spot.shadow.mapSize.width = 1024;
+                        spot.shadow.mapSize.height = 1024;
+                        spot.shadow.bias = -0.0005;
+                    }
+                    this.scene.add(spot);
+                    this.floodLights.push(spot);
+
+                    // Wireframe Light Stanchion Tower
+                    const towerGeo = new THREE.CylinderGeometry(0.3, 0.8, y, 6, 8, true);
+                    const towerMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, wireframe: true });
+                    const towerMesh = new THREE.Mesh(towerGeo, towerMat);
+                    towerMesh.position.set(x * 1.08, y / 2, z * 1.08);
+                    this.scene.add(towerMesh);
+
+                    // Volumetric Floodlight Beam Cone
+                    const coneGeo = new THREE.ConeGeometry(14, 34, 16, 1, true);
+                    coneGeo.translate(0, -17, 0);
+                    coneGeo.rotateX(Math.PI / 2);
+                    const coneMat = new THREE.MeshBasicMaterial({
+                        color: 0x38bdf8,
+                        transparent: true,
+                        opacity: 0.045,
+                        side: THREE.DoubleSide,
+                        depthWrite: false,
+                        blending: THREE.AdditiveBlending
+                    });
+                    const cone = new THREE.Mesh(coneGeo, coneMat);
+                    cone.position.set(x, y, z);
+                    cone.lookAt(0, 0, 0);
+                    this.scene.add(cone);
+                });
+
+                // Cyber-Turf Specular Pitch Surface
+                const turfGeo = new THREE.PlaneGeometry(this.pitchLength + 16, this.pitchWidth + 16, 64, 40);
+                turfGeo.rotateX(-Math.PI / 2);
+                const turfMat = new THREE.MeshStandardMaterial({
+                    color: 0x050b16,
+                    roughness: 0.42,
+                    metalness: 0.35
+                });
+                const turf = new THREE.Mesh(turfGeo, turfMat);
+                turf.receiveShadow = true;
+                this.scene.add(turf);
+
+                // Subtle Tactical Sub-Grid on Turf
+                const gridHelper = new THREE.GridHelper(this.pitchLength, 32, 0x0f2942, 0x081726);
+                gridHelper.scale.z = this.pitchWidth / this.pitchLength;
+                gridHelper.position.y = 0.01;
+                this.scene.add(gridHelper);
+
+                // Crisp Glowing Pitch Markings (Touchlines, Halfway Line, Center Circle, Penalty Boxes)
+                this.buildPitchMarkings();
+
+                // Build Left (Green Defends: X = -32) & Right (Red Defends: X = +32) 3D Wireframe Goals
+                this.buildGoalStructure(-this.pitchLength / 2, 0x00ff66, 1);
+                this.buildGoalStructure(this.pitchLength / 2, 0xff2244, -1);
+
+                // Surrounding Stadium Crowd Hologram Ring
+                this.buildStadiumBowl();
+            }
+
+            buildPitchMarkings() {
+                const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75 });
+                const halfL = this.pitchLength / 2;
+                const halfW = this.pitchWidth / 2;
+                const y = 0.025;
+
+                const addRect = (x1, z1, x2, z2) => {
+                    const pts = [
+                        new THREE.Vector3(x1, y, z1),
+                        new THREE.Vector3(x2, y, z1),
+                        new THREE.Vector3(x2, y, z2),
+                        new THREE.Vector3(x1, y, z2),
+                        new THREE.Vector3(x1, y, z1)
+                    ];
+                    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+                    this.scene.add(new THREE.Line(geo, lineMat));
+                };
+
+                // Outer Perimeter Touchlines
+                addRect(-halfL, -halfW, halfL, halfW);
+                // Halfway Line
+                addRect(0, -halfW, 0, halfW);
+                // Left & Right Penalty Boxes
+                addRect(-halfL, -9.5, -halfL + 10.5, 9.5);
+                addRect(halfL - 10.5, -9.5, halfL, 9.5);
+                // Goal Areas
+                addRect(-halfL, -5.5, -halfL + 4.5, 5.5);
+                addRect(halfL - 4.5, -5.5, halfL, 5.5);
+
+                // Center Circle
+                const circlePts = [];
+                const radius = 6.2;
+                for (let i = 0; i <= 48; i++) {
+                    const theta = (i / 48) * Math.PI * 2;
+                    circlePts.push(new THREE.Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius));
+                }
+                this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts), lineMat));
+
+                // Outer Containment Perimeter Boundary Line (Dynamically updates with outOfBoundsMargin)
+                const outMargin = (GAME_CONFIG.physics && GAME_CONFIG.physics.outOfBoundsMargin) || 1.6;
+                const borderMat = new THREE.LineBasicMaterial({ color: 0x00ff66, transparent: true, opacity: 0.28 });
+                const bPts = [
+                    new THREE.Vector3(-(halfL + outMargin), y, -(halfW + outMargin)),
+                    new THREE.Vector3( (halfL + outMargin), y, -(halfW + outMargin)),
+                    new THREE.Vector3( (halfL + outMargin), y,  (halfW + outMargin)),
+                    new THREE.Vector3(-(halfL + outMargin), y,  (halfW + outMargin)),
+                    new THREE.Vector3(-(halfL + outMargin), y, -(halfW + outMargin))
+                ];
+                this.containmentLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(bPts), borderMat);
+                this.scene.add(this.containmentLine);
+
+                // On-Pitch "WORLD WIDE SOCCER" Holographic Tournament Crest Texture
+                const crestCanvas = document.createElement('canvas');
+                crestCanvas.width = 1024;
+                crestCanvas.height = 256;
+                const cctx = crestCanvas.getContext('2d');
+                cctx.clearRect(0, 0, 1024, 256);
+                cctx.textAlign = 'center';
+                cctx.textBaseline = 'middle';
+                cctx.font = '900 54px Orbitron, sans-serif';
+                cctx.strokeStyle = 'rgba(0, 210, 255, 0.32)';
+                cctx.lineWidth = 3;
+                cctx.strokeText('WORLD WIDE SOCCER', 512, 105);
+                cctx.fillStyle = 'rgba(0, 255, 102, 0.14)';
+                cctx.fillText('WORLD WIDE SOCCER', 512, 105);
+                cctx.font = '700 24px Rajdhani, sans-serif';
+                cctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+                cctx.fillText('RED MAN DUEL // GLOBAL TOURNAMENT ARENA', 512, 165);
+
+                const crestTex = new THREE.CanvasTexture(crestCanvas);
+                const crestGeo = new THREE.PlaneGeometry(22, 5.5);
+                crestGeo.rotateX(-Math.PI / 2);
+                const crestMat = new THREE.MeshBasicMaterial({
+                    map: crestTex,
+                    transparent: true,
+                    depthWrite: false
+                });
+                const northCrest = new THREE.Mesh(crestGeo, crestMat);
+                northCrest.position.set(0, 0.018, -12.5);
+                const southCrest = new THREE.Mesh(crestGeo, crestMat);
+                southCrest.position.set(0, 0.018, 12.5);
+                this.scene.add(northCrest, southCrest);
+            }
+
+            buildGoalStructure(goalX, hexColor, dirSign) {
+                const goalGroup = new THREE.Group();
+                const postMat = new THREE.MeshBasicMaterial({ color: hexColor, wireframe: true });
+                const halfG = this.goalWidth / 2;
+                const h = this.goalHeight;
+                const d = this.goalDepth * -dirSign; // Extends behind goal line
+
+                // Left & Right Upright Posts + Crossbar
+                const postGeo = new THREE.CylinderGeometry(0.12, 0.12, h, 8, 4);
+                const leftPost = new THREE.Mesh(postGeo, postMat);
+                leftPost.position.set(goalX, h / 2, -halfG);
+                const rightPost = new THREE.Mesh(postGeo, postMat);
+                rightPost.position.set(goalX, h / 2, halfG);
+
+                const barGeo = new THREE.CylinderGeometry(0.12, 0.12, this.goalWidth, 8, 8);
+                barGeo.rotateX(Math.PI / 2);
+                const crossbar = new THREE.Mesh(barGeo, postMat);
+                crossbar.position.set(goalX, h, 0);
+
+                goalGroup.add(leftPost, rightPost, crossbar);
+
+                // Reactive Deformable Wireframe Net Mesh
+                const netGeo = new THREE.PlaneGeometry(this.goalWidth, h, 14, 8);
+                const netMat = new THREE.MeshBasicMaterial({
+                    color: hexColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.42,
+                    side: THREE.DoubleSide
+                });
+                const backNet = new THREE.Mesh(netGeo, netMat);
+                backNet.rotation.y = Math.PI / 2;
+                backNet.position.set(goalX + d, h / 2, 0);
+                goalGroup.add(backNet);
+
+                // Store vertex rest positions for goal-impact ripple animation
+                const posAttr = backNet.geometry.attributes.position;
+                const origCoords = new Float32Array(posAttr.array.length);
+                origCoords.set(posAttr.array);
+                this.nets.push({
+                    mesh: backNet,
+                    origCoords,
+                    goalX: goalX + d,
+                    rippleIntensity: 0,
+                    impactPoint: new THREE.Vector3()
+                });
+
+                this.scene.add(goalGroup);
+            }
+
+            buildStadiumBowl() {
+                // Distant glowing stadium tier perimeter lights
+                const pts = [];
+                const colors = [];
+                const c1 = new THREE.Color(0x00ff66);
+                const c2 = new THREE.Color(0xff2244);
+                const c3 = new THREE.Color(0x00d2ff);
+
+                for (let i = 0; i < 420; i++) {
+                    const angle = (i / 420) * Math.PI * 2;
+                    const tier = (i % 4);
+                    const rx = 46 + tier * 3.5;
+                    const rz = 32 + tier * 3.0;
+                    pts.push(
+                        Math.cos(angle) * rx,
+                        4.5 + tier * 2.4 + Math.sin(i * 7) * 0.5,
+                        Math.sin(angle) * rz
+                    );
+                    const col = Math.cos(angle) < 0 ? c1 : (Math.random() > 0.3 ? c2 : c3);
+                    colors.push(col.r, col.g, col.b);
+                }
+
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+                geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                const mat = new THREE.PointsMaterial({ size: 0.45, vertexColors: true, transparent: true, opacity: 0.65 });
+                this.stadiumCrowd = new THREE.Points(geo, mat);
+                this.scene.add(this.stadiumCrowd);
+            }
+
+            initCannonPhysics() {
+                this.world = new CANNON.World();
+                this.world.gravity.set(0, GAME_CONFIG.physics.gravityY, 0);
+                this.world.broadphase = new CANNON.NaiveBroadphase();
+
+                // Physics Materials
+                this.turfPhysMat = new CANNON.Material('turfMaterial');
+                this.ballPhysMat = new CANNON.Material('ballMaterial');
+                this.postPhysMat = new CANNON.Material('postMaterial');
+                this.playerPhysMat = new CANNON.Material('playerMaterial');
+
+                const ballTurfContact = new CANNON.ContactMaterial(this.turfPhysMat, this.ballPhysMat, {
+                    friction: 0.38,
+                    restitution: GAME_CONFIG.physics.ballRestitution
+                });
+                const ballPostContact = new CANNON.ContactMaterial(this.postPhysMat, this.ballPhysMat, {
+                    friction: 0.05,
+                    restitution: 0.82
+                });
+                const playerPlayerContact = new CANNON.ContactMaterial(this.playerPhysMat, this.playerPhysMat, {
+                    friction: 0.0,
+                    restitution: 0.85
+                });
+                const playerBallContact = new CANNON.ContactMaterial(this.playerPhysMat, this.ballPhysMat, {
+                    friction: 0.15,
+                    restitution: 0.35
+                });
+                this.world.addContactMaterial(ballTurfContact);
+                this.world.addContactMaterial(ballPostContact);
+                this.world.addContactMaterial(playerPlayerContact);
+                this.world.addContactMaterial(playerBallContact);
+                this.ballTurfContact = ballTurfContact;
+
+                // Ground Plane
+                const groundBody = new CANNON.Body({ mass: 0, material: this.turfPhysMat });
+                groundBody.addShape(new CANNON.Plane());
+                groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+                this.world.addBody(groundBody);
+
+                // Goalpost & Crossbar Rigid Bodies for Accurate Post/Bar Deflections
+                const halfL = this.pitchLength / 2;
+                const halfG = this.goalWidth / 2;
+                [-halfL, halfL].forEach(gx => {
+                    [-halfG, halfG].forEach(gz => {
+                        const postBody = new CANNON.Body({ mass: 0, material: this.postPhysMat });
+                        postBody.addShape(new CANNON.Sphere(0.16), new CANNON.Vec3(gx, 0.8, gz));
+                        postBody.addShape(new CANNON.Sphere(0.16), new CANNON.Vec3(gx, 1.8, gz));
+                        postBody.addShape(new CANNON.Sphere(0.16), new CANNON.Vec3(gx, 2.7, gz));
+                        postBody.addShape(new CANNON.Sphere(0.16), new CANNON.Vec3(gx, this.goalHeight, gz));
+                        this.world.addBody(postBody);
+                    });
+                    // Horizontal Crossbar Collider Spheres along Z from -halfG to +halfG at y = goalHeight
+                    const crossbarBody = new CANNON.Body({ mass: 0, material: this.postPhysMat });
+                    for (let cz = -halfG + 0.5; cz <= halfG - 0.5; cz += 0.65) {
+                        crossbarBody.addShape(new CANNON.Sphere(0.16), new CANNON.Vec3(gx, this.goalHeight, cz));
+                    }
+                    this.world.addBody(crossbarBody);
+                });
+            }
+
+            initEntities() {
+                // 1. Standing Green Wireframe User Player
+                this.playerGreen = new WireframeSoccerPlayer(
+                    this.scene,
+                    GAME_CONFIG.visuals.playerWireframeColor,
+                    false
+                );
+
+                // 2. Standing Red Wireframe AI Opponent
+                this.playerRed = new WireframeSoccerPlayer(
+                    this.scene,
+                    GAME_CONFIG.visuals.opponentWireframeColor,
+                    true
+                );
+
+                // Player Physics Colliders (Kinematic / Velocity-Driven Rigid Bodies with Anti-Plowing Material)
+                this.greenBody = new CANNON.Body({
+                    mass: 80,
+                    material: this.playerPhysMat,
+                    fixedRotation: true,
+                    linearDamping: 0.18,
+                    allowSleep: false
+                });
+                this.greenBody.addShape(new CANNON.Sphere(0.58));
+                this.world.addBody(this.greenBody);
+
+                this.redBody = new CANNON.Body({
+                    mass: 80,
+                    material: this.playerPhysMat,
+                    fixedRotation: true,
+                    linearDamping: 0.18,
+                    allowSleep: false
+                });
+                this.redBody.addShape(new CANNON.Sphere(0.58));
+                this.world.addBody(this.redBody);
+                this.bodyClashCooldown = 0;
+                this.greenSlideCooldown = 0;
+
+                // AI Tactical State Tracking
+                this.aiTacticalState = 'PRESSING';
+                this.aiKickCooldown = 0;
+                this.aiSlideCooldown = 0;
+                this.aiStuckTimer = 0;
+
+                // 3. 3D Geodesic Wireframe Soccer Ball + Physics Body
+                this.ballRadius = 0.38;
+                const ballGeo = new THREE.IcosahedronGeometry(this.ballRadius, 2);
+                const ballCore = new THREE.Mesh(
+                    ballGeo,
+                    new THREE.MeshStandardMaterial({
+                        color: 0x0b1528,
+                        emissive: 0x00d2ff,
+                        emissiveIntensity: 0.35,
+                        roughness: 0.2
+                    })
+                );
+                const ballWire = new THREE.Mesh(
+                    ballGeo,
+                    new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true })
+                );
+                ballWire.scale.setScalar(1.03);
+                this.ballMesh = new THREE.Group();
+                this.ballMesh.add(ballCore, ballWire);
+                this.ballMesh.castShadow = true;
+                this.scene.add(this.ballMesh);
+
+                // Dynamic PointLight inside the Ball for Pitch Specular Glow
+                this.ballLight = new THREE.PointLight(0x00d2ff, 1.4, 9);
+                this.ballMesh.add(this.ballLight);
+
+                this.ballBody = new CANNON.Body({
+                    mass: GAME_CONFIG.physics.ballMass,
+                    material: this.ballPhysMat,
+                    linearDamping: GAME_CONFIG.physics.ballLinearDamping,
+                    angularDamping: GAME_CONFIG.physics.ballAngularDamping,
+                    allowSleep: false
+                });
+                this.ballBody.addShape(new CANNON.Sphere(this.ballRadius));
+                this.world.addBody(this.ballBody);
+
+                // Ball post-collision listener
+                this.ballBody.addEventListener('collide', (e) => {
+                    if (e.body.material === this.postPhysMat) {
+                        audioFX.playPostClang();
+                        this.spawnSparks(this.ballMesh.position, 0xffffff, 24);
+                    }
+                });
+
+                this.resetPositions();
+            }
+
+            initParticleSystems() {
+                // Ribbon Trail behind High-Velocity Ball Shots
+                const maxTrail = 28;
+                for (let i = 0; i < maxTrail; i++) {
+                    this.ballTrailPoints.push(new THREE.Vector3(0, 0.38, 0));
+                }
+                this.trailGeo = new THREE.BufferGeometry().setFromPoints(this.ballTrailPoints);
+                this.trailLine = new THREE.Line(
+                    this.trailGeo,
+                    new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.55 })
+                );
+                this.scene.add(this.trailLine);
+            }
+
+            spawnSparks(origin, colorHex, count = 18) {
+                const geo = new THREE.BufferGeometry();
+                const positions = new Float32Array(count * 3);
+                const velocities = [];
+                for (let i = 0; i < count; i++) {
+                    positions[i * 3] = origin.x;
+                    positions[i * 3 + 1] = Math.max(0.1, origin.y);
+                    positions[i * 3 + 2] = origin.z;
+                    velocities.push(new THREE.Vector3(
+                        (Math.random() - 0.5) * 14,
+                        Math.random() * 9 + 2,
+                        (Math.random() - 0.5) * 14
+                    ));
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const mat = new THREE.PointsMaterial({ color: colorHex, size: 0.22, transparent: true, opacity: 1 });
+                const pts = new THREE.Points(geo, mat);
+                this.scene.add(pts);
+                this.particles.push({ mesh: pts, velocities, life: 1.0 });
+            }
+
+            updateParticles(dt) {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.life -= dt * 1.8;
+                    if (p.life <= 0) {
+                        this.scene.remove(p.mesh);
+                        p.mesh.geometry.dispose();
+                        p.mesh.material.dispose();
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+                    p.mesh.material.opacity = p.life;
+                    const pos = p.mesh.geometry.attributes.position.array;
+                    for (let j = 0; j < p.velocities.length; j++) {
+                        p.velocities[j].y -= 18 * dt;
+                        pos[j * 3] += p.velocities[j].x * dt;
+                        pos[j * 3 + 1] = Math.max(0.05, pos[j * 3 + 1] + p.velocities[j].y * dt);
+                        pos[j * 3 + 2] += p.velocities[j].z * dt;
+                    }
+                    p.mesh.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Update Ball Trail Ribbon
+                this.ballTrailPoints.pop();
+                this.ballTrailPoints.unshift(this.ballMesh.position.clone());
+                this.trailGeo.setFromPoints(this.ballTrailPoints);
+            }
+
+            resetPositions(kickoffSide = 0) {
+                // Green Player at Left Half (-10, 0)
+                this.greenBody.position.set(-10, 0.55, 0);
+                this.greenBody.velocity.set(0, 0, 0);
+                this.playerGreen.root.position.set(-10, 0, 0);
+                this.playerGreen.facingAngle = Math.PI / 2;
+
+                // Red AI Player at Right Half (+10, 0)
+                this.redBody.position.set(10, 0.55, 0);
+                this.redBody.velocity.set(0, 0, 0);
+                this.playerRed.root.position.set(10, 0, 0);
+                this.playerRed.facingAngle = -Math.PI / 2;
+
+                // Reset player kinematic animation states cleanly
+                this.playerGreen.slideTimer = 0;
+                this.playerGreen.kickTimer = 0;
+                this.playerRed.slideTimer = 0;
+                this.playerRed.kickTimer = 0;
+
+                // Ball at Center Spot
+                this.ballBody.position.set(kickoffSide * 1.5, 1.2, 0);
+                this.ballBody.velocity.set(0, 0, 0);
+                this.ballBody.angularVelocity.set(0, 0, 0);
+                this.ballMesh.position.set(kickoffSide * 1.5, 1.2, 0);
+
+                // Reset ribbon trail points to center spot so no streak stretches from the goal
+                if (this.ballTrailPoints && this.trailGeo) {
+                    for (let i = 0; i < this.ballTrailPoints.length; i++) {
+                        this.ballTrailPoints[i].set(kickoffSide * 1.5, 1.2, 0);
+                    }
+                    this.trailGeo.setFromPoints(this.ballTrailPoints);
+                }
+            }
+
+            /**********************************************************************
+             * 5. PLAYER INPUT, BALL DRIBBLING, KICKING & MAGNUS SPIN PHYSICS
+             **********************************************************************/
+            handlePlayerControls(dt) {
+                if (this.greenSlideCooldown > 0) {
+                    this.greenSlideCooldown = Math.max(0, this.greenSlideCooldown - dt);
+                }
+
+                let inputRight = 0;
+                let inputUp = 0;
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) inputUp += 1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) inputUp -= 1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) inputRight += 1;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) inputRight -= 1;
+
+                const pPhys = GAME_CONFIG.playerPhysics || {
+                    baseSpeed: GAME_CONFIG.physics.playerSpeed || 20.0,
+                    sprintMultiplier: GAME_CONFIG.physics.sprintMultiplier || 1.85,
+                    acceleration: 75.0,
+                    staminaDrainRate: 0.0,
+                    staminaRegenRate: 50.0,
+                    unlimitedStamina: true
+                };
+
+                const hasInput = (inputRight !== 0 || inputUp !== 0);
+                const isSprinting = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) &&
+                    (pPhys.unlimitedStamina || this.playerGreen.stamina > 1) &&
+                    hasInput;
+
+                if (pPhys.unlimitedStamina || pPhys.staminaDrainRate <= 0) {
+                    this.playerGreen.stamina = 100;
+                } else if (isSprinting) {
+                    this.playerGreen.stamina = Math.max(0, this.playerGreen.stamina - dt * pPhys.staminaDrainRate);
+                } else {
+                    this.playerGreen.stamina = Math.min(100, this.playerGreen.stamina + dt * pPhys.staminaRegenRate);
+                }
+
+                // Compute camera-aligned ground basis vectors so Up/Down/Left/Right match screen directions
+                const camForward = new THREE.Vector3();
+                this.camera.getWorldDirection(camForward);
+                camForward.y = 0;
+                if (camForward.lengthSq() < 0.0001) {
+                    camForward.set(0, 0, -1);
+                } else {
+                    camForward.normalize();
+                }
+                // Right vector on the XZ plane: cross(camForward, WorldUp(0,1,0)) = (-camForward.z, 0, camForward.x)
+                const camRight = new THREE.Vector3(-camForward.z, 0, camForward.x).normalize();
+
+                let moveX = camRight.x * inputRight + camForward.x * inputUp;
+                let moveZ = camRight.z * inputRight + camForward.z * inputUp;
+
+                // Normalize movement vector with boosted Green player speed & sprint multiplier
+                const len = Math.hypot(moveX, moveZ);
+                const greenBaseSpeed = pPhys.baseSpeed || GAME_CONFIG.physics.playerSpeed;
+                const greenSprintMult = pPhys.sprintMultiplier || GAME_CONFIG.physics.sprintMultiplier;
+                const targetSpeed = greenBaseSpeed * (isSprinting ? greenSprintMult : 1.0);
+                if (len > 0) {
+                    moveX = (moveX / len) * targetSpeed;
+                    moveZ = (moveZ / len) * targetSpeed;
+                }
+
+                if (this.playerGreen.slideTimer > 0.1) {
+                    // Turf slide friction deceleration & recovery window: player cannot steer-boost mid-slide
+                    const slideFriction = Math.pow(0.14, dt);
+                    this.greenBody.velocity.x *= slideFriction;
+                    this.greenBody.velocity.z *= slideFriction;
+                } else {
+                    // High-acceleration snappy velocity responsiveness
+                    const accelRate = (pPhys.acceleration || 75.0) * 0.35;
+                    this.greenBody.velocity.x += (moveX - this.greenBody.velocity.x) * Math.min(1, dt * accelRate);
+                    this.greenBody.velocity.z += (moveZ - this.greenBody.velocity.z) * Math.min(1, dt * accelRate);
+                }
+                this.greenBody.position.y = 0.55;
+
+                // Keep player within tight court margin (outOfBoundsMargin default 1.6m)
+                const courtMargin = (GAME_CONFIG.physics && GAME_CONFIG.physics.outOfBoundsMargin !== undefined)
+                    ? GAME_CONFIG.physics.outOfBoundsMargin
+                    : 1.6;
+                const maxX = this.pitchLength / 2 + courtMargin;
+                const maxZ = this.pitchWidth / 2 + courtMargin;
+                this.greenBody.position.x = Math.max(-maxX, Math.min(maxX, this.greenBody.position.x));
+                this.greenBody.position.z = Math.max(-maxZ, Math.min(maxZ, this.greenBody.position.z));
+
+                // Anti-Plowing Player-to-Player Solid Collision Solver
+                this.resolvePlayerCollisions(dt);
+
+                this.playerGreen.root.position.set(this.greenBody.position.x, 0, this.greenBody.position.z);
+                this.playerGreen.updateKinematics(dt, this.greenBody.velocity, isSprinting);
+
+                // Shot Charge Accumulation (Hold SPACE)
+                if (this.isChargingShot) {
+                    this.shotCharge = Math.min(1.0, this.shotCharge + dt * 1.35);
+                }
+
+                // Close-Control Dribbling & Foot-Ball Interaction (Capped so sprinting Green player never launches the ball uncontrollably)
+                const distToBall = Math.hypot(
+                    this.ballBody.position.x - this.greenBody.position.x,
+                    this.ballBody.position.z - this.greenBody.position.z
+                );
+
+                if (distToBall < 1.45 && this.ballBody.position.y < 1.75) {
+                    this.possession = 'CCC EDUCATIONAL SOFTWARE (GREEN)';
+                    this.possessionTimeGreen += dt;
+                    this.lastTouchPosition.copy(this.playerGreen.root.position);
+                    this.ballLight.color.setHex(0x00ff66);
+
+                    // Soft magnetized dribble touch capped at 21.5 m/s so Green never plows or blasts the ball off-screen on contact
+                    if (len > 0 && !this.isChargingShot) {
+                        const forwardX = Math.sin(this.playerGreen.facingAngle);
+                        const forwardZ = Math.cos(this.playerGreen.facingAngle);
+                        let dribVx = this.greenBody.velocity.x * 0.96 + forwardX * 1.65;
+                        let dribVz = this.greenBody.velocity.z * 0.96 + forwardZ * 1.65;
+                        const dribSpeed = Math.hypot(dribVx, dribVz);
+                        const maxDribSpeed = 21.5;
+                        if (dribSpeed > maxDribSpeed) {
+                            dribVx = (dribVx / dribSpeed) * maxDribSpeed;
+                            dribVz = (dribVz / dribSpeed) * maxDribSpeed;
+                        }
+                        this.ballBody.velocity.x = dribVx;
+                        this.ballBody.velocity.z = dribVz;
+                        // Dampen stray vertical bounce during close-control dribble
+                        if (this.ballBody.position.y < 0.65 && this.ballBody.velocity.y > 2.5) {
+                            this.ballBody.velocity.y *= 0.45;
+                        }
+                    }
+                }
+            }
+
+            // Prevents the Green player from plowing straight through the Red Man Duel AI opponent
+            resolvePlayerCollisions(dt) {
+                if (this.bodyClashCooldown > 0) {
+                    this.bodyClashCooldown = Math.max(0, this.bodyClashCooldown - dt);
+                }
+                const pPhys = GAME_CONFIG.playerPhysics || {};
+                const minSep = pPhys.minSeparationDist || 1.22;
+                const bounceFactor = pPhys.playerBodyBounce !== undefined ? pPhys.playerBodyBounce : 0.75;
+
+                const dx = this.greenBody.position.x - this.redBody.position.x;
+                const dz = this.greenBody.position.z - this.redBody.position.z;
+                const dist = Math.hypot(dx, dz);
+
+                if (dist < minSep) {
+                    const nx = dist > 0.001 ? dx / dist : 1.0;
+                    const nz = dist > 0.001 ? dz / dist : 0.0;
+                    const overlap = minSep - dist;
+
+                    // 1. Immediate positional separation so Green cannot clip or plow through Red
+                    this.greenBody.position.x += nx * (overlap * 0.58);
+                    this.greenBody.position.z += nz * (overlap * 0.58);
+                    this.redBody.position.x -= nx * (overlap * 0.42);
+                    this.redBody.position.z -= nz * (overlap * 0.42);
+
+                    // 2. Relative velocity along collision normal
+                    const rvx = this.greenBody.velocity.x - this.redBody.velocity.x;
+                    const rvz = this.greenBody.velocity.z - this.redBody.velocity.z;
+                    const velAlongNormal = rvx * nx + rvz * nz;
+
+                    if (velAlongNormal < 0) {
+                        // If Green was mid-slide, halt slide burst immediately on body contact so it cannot run over Red
+                        if (this.playerGreen.slideTimer > 0) {
+                            this.greenBody.velocity.x = nx * 4.5;
+                            this.greenBody.velocity.z = nz * 4.5;
+                            this.redBody.velocity.x -= nx * 5.5;
+                            this.redBody.velocity.z -= nz * 5.5;
+                        } else {
+                            // Cancel plowing forward momentum and apply shoulder-tackle elastic deflection
+                            const impulse = -(1.0 + bounceFactor) * velAlongNormal * 0.55;
+                            this.greenBody.velocity.x += nx * impulse;
+                            this.greenBody.velocity.z += nz * impulse;
+                            this.redBody.velocity.x -= nx * impulse * 0.75;
+                            this.redBody.velocity.z -= nz * impulse * 0.75;
+                        }
+
+                        // 3. Jostle the ball loose if either player was trying to plow through with possession
+                        const ballDistGreen = Math.hypot(
+                            this.ballBody.position.x - this.greenBody.position.x,
+                            this.ballBody.position.z - this.greenBody.position.z
+                        );
+                        if (ballDistGreen < 1.85 && this.bodyClashCooldown <= 0) {
+                            this.bodyClashCooldown = 0.28;
+                            // Pop ball slightly sideways along tangent of collision
+                            const tx = -nz;
+                            const tz = nx;
+                            const sideSign = ((this.ballBody.position.x - this.redBody.position.x) * tx +
+                                              (this.ballBody.position.z - this.redBody.position.z) * tz) >= 0 ? 1 : -1;
+                            this.ballBody.velocity.x += tx * sideSign * 6.5;
+                            this.ballBody.velocity.z += tz * sideSign * 6.5;
+                            this.ballBody.velocity.y = Math.min(4.2, this.ballBody.velocity.y + 1.8);
+                            this.spawnSparks(this.ballMesh.position, 0x00d2ff, 14);
+                        }
+                    }
+                }
+            }
+
+            executePlayerKick(isLobOrSlide = false) {
+                const dx = this.ballBody.position.x - this.greenBody.position.x;
+                const dz = this.ballBody.position.z - this.greenBody.position.z;
+                const dist = Math.hypot(dx, dz);
+
+                if (isLobOrSlide && dist > 2.4) {
+                    // Enforce Slide Tackle Cooldown so students cannot spam E/X to bulldoze opponents
+                    if (this.greenSlideCooldown > 0 || this.playerGreen.slideTimer > 0) {
+                        this.playerGreen.currentAction = `SLIDE RECHARGING (${this.greenSlideCooldown.toFixed(1)}S)`;
+                        return;
+                    }
+                    const pPhys = GAME_CONFIG.playerPhysics || {};
+                    const cdDuration = pPhys.slideCooldownSeconds !== undefined ? pPhys.slideCooldownSeconds : 2.5;
+                    const burstSpeed = pPhys.slideBurstSpeed !== undefined ? pPhys.slideBurstSpeed : 22.0;
+
+                    this.greenSlideCooldown = cdDuration;
+                    this.playerGreen.triggerSlide();
+                    const fx = Math.sin(this.playerGreen.facingAngle);
+                    const fz = Math.cos(this.playerGreen.facingAngle);
+                    this.greenBody.velocity.x = fx * burstSpeed;
+                    this.greenBody.velocity.z = fz * burstSpeed;
+                    this.spawnSparks(this.playerGreen.root.position, 0x00ff66, 12);
+                    return;
+                }
+
+                if (dist < 2.35 && this.ballBody.position.y < 2.2) {
+                    const power = isLobOrSlide ? 0.62 : Math.max(0.28, this.shotCharge);
+                    this.playerGreen.triggerKick('right');
+                    audioFX.playKick(power);
+                    this.shotsGreen++;
+                    this.lastTouchPosition.copy(this.playerGreen.root.position);
+
+                    // Aim slightly biased toward the opponent's goal (+X) combined with player facing
+                    const facingX = Math.sin(this.playerGreen.facingAngle);
+                    const facingZ = Math.cos(this.playerGreen.facingAngle);
+
+                    const maxShotImp = GAME_CONFIG.physics.shotMaxImpulse || 25.5;
+                    const impulseMag = maxShotImp * power;
+                    // Controlled vertical lift so power shots stay beneath the stadium ceiling & crossbar level
+                    const upImpulse = isLobOrSlide
+                        ? (GAME_CONFIG.physics.lobImpulseY || 10.8)
+                        : (2.2 + power * 5.2);
+
+                    this.ballBody.velocity.set(
+                        facingX * impulseMag,
+                        upImpulse,
+                        facingZ * impulseMag
+                    );
+
+                    // Controlled Magnus Aerodynamic Curve Spin (capped to prevent endless spinning)
+                    const curveSpinY = Math.max(-18.0, Math.min(18.0, -this.greenBody.velocity.z * 1.15));
+                    const rollSpinZ = Math.max(-20.0, Math.min(20.0, -impulseMag * 0.55));
+                    this.ballBody.angularVelocity.set(0, curveSpinY, rollSpinZ);
+
+                    this.spawnSparks(this.ballMesh.position, 0x00ff66, 22);
+                    this.autoDirectorTimer = 2.0;
+                    this.autoDirectorCut = 'closeup';
+                }
+                this.shotCharge = 0;
+            }
+
+            /**********************************************************************
+             * 6. INTELLIGENT AI OPPONENT (RED WIREFRAME) CONTROLLER
+             **********************************************************************/
+            updateAIOpponent(dt) {
+                // Ensure Red's Cannon.js physics body is NEVER sleeping
+                this.redBody.allowSleep = false;
+                this.redBody.wakeUp();
+                this.greenBody.wakeUp();
+                this.ballBody.wakeUp();
+
+                if (this.aiKickCooldown > 0) this.aiKickCooldown = Math.max(0, this.aiKickCooldown - dt);
+                if (this.aiSlideCooldown > 0) this.aiSlideCooldown = Math.max(0, this.aiSlideCooldown - dt);
+
+                const aiCfg = GAME_CONFIG.aiOpponent || {};
+                const diffMult = aiCfg.difficulty === 'All-Star' ? 1.15 : (aiCfg.difficulty === 'Rookie' ? 0.80 : 1.0);
+
+                // Normal human competitive speed (11.0 m/s base, 1.35x sprint, 48.0 acceleration)
+                const aiBaseSpeed = (aiCfg.aiBaseSpeed !== undefined ? aiCfg.aiBaseSpeed : 11.0) * diffMult;
+                const aiSprintMult = aiCfg.aiSprintMultiplier !== undefined ? aiCfg.aiSprintMultiplier : 1.35;
+                const aiAccel = aiCfg.aiAcceleration !== undefined ? aiCfg.aiAcceleration : 48.0;
+
+                const halfL = this.pitchLength / 2; // 32
+                const halfW = this.pitchWidth / 2;  // 20
+                const greenGoalX = -halfL;          // -32 (Red attacks this goal)
+                const redGoalX = halfL;             // +32 (Red defends this goal)
+
+                const bx = this.ballBody.position.x;
+                const by = this.ballBody.position.y;
+                const bz = this.ballBody.position.z;
+                const bvx = this.ballBody.velocity.x;
+                const bvz = this.ballBody.velocity.z;
+
+                const rx = this.redBody.position.x;
+                const rz = this.redBody.position.z;
+                const gx = this.greenBody.position.x;
+                const gz = this.greenBody.position.z;
+
+                const distRedToBall = Math.hypot(bx - rx, bz - rz);
+                const distGreenToBall = Math.hypot(bx - gx, bz - gz);
+                const ballSpeed = Math.hypot(bvx, bvz);
+
+                // a) BALL PREDICTION & INTERCEPTION
+                const lookAheadTime = Math.min(0.65, (distRedToBall / Math.max(8.0, aiBaseSpeed)) * 0.55);
+                const predBx = Math.max(-halfL + 1.2, Math.min(halfL - 1.2, bx + bvx * lookAheadTime));
+                const predBz = Math.max(-halfW + 1.2, Math.min(halfW - 1.2, bz + bvz * lookAheadTime));
+
+                // e) ANTI-STUCK / UNSTUCK DETECTION (Ball pinned near sidelines or corners)
+                const nearWall = Math.abs(bz) > (halfW - 2.2) || Math.abs(bx) > (halfL - 2.2);
+                if (nearWall && ballSpeed < 2.2 && distRedToBall < 4.5) {
+                    this.aiStuckTimer += dt;
+                } else {
+                    this.aiStuckTimer = Math.max(0, this.aiStuckTimer - dt * 2.0);
+                }
+
+                // Determine open corner of Green's goal (-32) away from Green player's Z position
+                const openCornerZ = gz >= 0 ? -this.goalWidth * 0.34 : this.goalWidth * 0.34;
+                const vecToGreenGoalX = greenGoalX - predBx;
+                const vecToGreenGoalZ = openCornerZ - predBz;
+                const lenToGreenGoal = Math.hypot(vecToGreenGoalX, vecToGreenGoalZ) || 1;
+                const attackDirX = vecToGreenGoalX / lenToGreenGoal; // Points toward -X
+                const attackDirZ = vecToGreenGoalZ / lenToGreenGoal;
+
+                let targetX = predBx;
+                let targetZ = predBz;
+                let aiSprinting = false;
+
+                const greenHasBall = distGreenToBall < 2.3 && distGreenToBall < distRedToBall - 0.3;
+                const ballInRedDangerZone = bx > 9.5 || (bx > 2.0 && bvx > 4.5);
+
+                // STATE MACHINE SELECTION
+                if (this.playerRed.slideTimer > 0.15) {
+                    this.aiTacticalState = 'SLIDE TACKLE';
+                    aiSprinting = true;
+                } else if (this.aiStuckTimer > 0.35) {
+                    // e) UNSTUCK EXTRACTION: Angle run to scoop ball toward pitch center
+                    this.aiTacticalState = 'INTERCEPTING';
+                    targetX = bx + Math.sign(bx || 1) * 0.65;
+                    targetZ = bz + Math.sign(bz || 1) * 0.65;
+                    aiSprinting = true;
+                } else if ((greenHasBall && bx > -4.0) || (ballInRedDangerZone && rx < bx - 1.2)) {
+                    // d) DEFENSIVE SHADOWING & SWEEPER-GOALKEEPING
+                    this.aiTacticalState = bx > 14.0 ? 'GOALKEEPING' : 'PRESSING';
+                    aiSprinting = true;
+
+                    // Shadow the shooting lane between the ball and the center of Red's goal (+32, 0)
+                    const guardDepth = bx > 18.0 ? 0.52 : 0.32;
+                    const laneX = predBx + (redGoalX - predBx) * guardDepth;
+                    const laneZ = predBz + (0 - predBz) * guardDepth;
+
+                    // Clamp inside penalty box if acting as Sweeper-Keeper, or press directly when close
+                    if (distRedToBall < 6.5 && rx >= bx - 0.3) {
+                        this.aiTacticalState = 'PRESSING';
+                        targetX = predBx + 0.35;
+                        targetZ = predBz;
+                    } else {
+                        targetX = Math.min(redGoalX - 1.6, Math.max(bx + 1.2, laneX));
+                        targetZ = Math.max(-this.goalWidth * 0.48, Math.min(this.goalWidth * 0.48, laneZ));
+                    }
+
+                    // Execute Slide Tackle lunge if Green is in tackle range and Red is aligned
+                    if (greenHasBall && distRedToBall > 1.5 && distRedToBall < 3.8 && this.aiSlideCooldown <= 0 && rx > bx - 0.8) {
+                        this.aiTacticalState = 'SLIDE TACKLE';
+                        this.aiSlideCooldown = 2.6;
+                        this.playerRed.triggerSlide();
+                        const lungeX = (bx - rx) / (distRedToBall || 1);
+                        const lungeZ = (bz - rz) / (distRedToBall || 1);
+                        this.redBody.velocity.x = lungeX * 22.5;
+                        this.redBody.velocity.z = lungeZ * 22.5;
+                        this.spawnSparks(this.playerRed.root.position, 0xff2244, 15);
+                    }
+                } else {
+                    // OFFENSIVE & INTERCEPTION PHASE
+                    // b) SMART APPROACH: Check if Red is on the wrong side of the ball (closer to Green's goal than the ball is)
+                    const isWrongSide = rx < bx - 0.35;
+                    if (isWrongSide && distRedToBall < 5.5) {
+                        this.aiTacticalState = 'INTERCEPTING';
+                        aiSprinting = true;
+                        // Arc around the top or bottom of the ball to get behind it (+X side) without knocking it into Red's own net
+                        const detourSide = (rz >= bz) ? 1 : -1;
+                        targetX = predBx + 1.85;
+                        targetZ = predBz + detourSide * 1.95;
+                    } else if (distRedToBall > 3.2) {
+                        // a) Cut off future ball position positioned slightly behind its attack line
+                        this.aiTacticalState = ballSpeed > 5.0 ? 'INTERCEPTING' : 'PRESSING';
+                        aiSprinting = distRedToBall > 4.2 || ballSpeed > 6.0;
+                        targetX = predBx - attackDirX * 0.65;
+                        targetZ = predBz - attackDirZ * 0.65;
+                    } else {
+                        // Close to ball and on the correct attacking side (+X side of ball)
+                        if (bx < -8.0) {
+                            this.aiTacticalState = 'SHOOTING';
+                            aiSprinting = true;
+                        } else {
+                            this.aiTacticalState = 'DRIBBLING';
+                            aiSprinting = distGreenToBall < 6.0;
+                        }
+                        targetX = bx - attackDirX * 0.25;
+                        targetZ = bz - attackDirZ * 0.25;
+                    }
+                }
+
+                // Clamp AI target coordinates within valid pitch boundaries
+                targetX = Math.max(-halfL + 0.8, Math.min(halfL - 0.8, targetX));
+                targetZ = Math.max(-halfW + 0.8, Math.min(halfW - 0.8, targetZ));
+
+                // Calculate velocity & apply responsive acceleration directly in physics step
+                if (this.playerRed.slideTimer <= 0.15) {
+                    const toTargetX = targetX - rx;
+                    const toTargetZ = targetZ - rz;
+                    const distToTarget = Math.hypot(toTargetX, toTargetZ);
+
+                    const desiredSpeed = aiSprinting ? (aiBaseSpeed * aiSprintMult) : aiBaseSpeed;
+                    let desiredVx = 0;
+                    let desiredVz = 0;
+
+                    if (distToTarget > 0.08) {
+                        const throttle = Math.min(1.0, distToTarget / 0.75);
+                        desiredVx = (toTargetX / distToTarget) * desiredSpeed * throttle;
+                        desiredVz = (toTargetZ / distToTarget) * desiredSpeed * throttle;
+                    }
+
+                    const accelStep = Math.min(1.0, dt * (aiAccel * 0.32));
+                    this.redBody.velocity.x += (desiredVx - this.redBody.velocity.x) * accelStep;
+                    this.redBody.velocity.z += (desiredVz - this.redBody.velocity.z) * accelStep;
+                }
+
+                // Keep Red player inside tight court margin and resolve any body overlap with Green
+                const aiCourtMargin = (GAME_CONFIG.physics && GAME_CONFIG.physics.outOfBoundsMargin !== undefined)
+                    ? GAME_CONFIG.physics.outOfBoundsMargin
+                    : 1.6;
+                const maxBoundX = halfL + aiCourtMargin;
+                const maxBoundZ = halfW + aiCourtMargin;
+                this.redBody.position.x = Math.max(-maxBoundX, Math.min(maxBoundX, this.redBody.position.x));
+                this.redBody.position.z = Math.max(-maxBoundZ, Math.min(maxBoundZ, this.redBody.position.z));
+                this.redBody.position.y = 0.55;
+                this.resolvePlayerCollisions(dt);
+
+                this.playerRed.root.position.set(this.redBody.position.x, 0, this.redBody.position.z);
+                this.playerRed.updateKinematics(dt, this.redBody.velocity, aiSprinting);
+                this.playerRed.currentAction = this.aiTacticalState;
+
+                // BALL INTERACTION: DRIBBLING, EVASIVE STEERING, GOALKEEPING CLEARANCES & FINISHING SHOTS
+                if (distRedToBall < 1.58 && by < 1.95 && this.aiKickCooldown <= 0) {
+                    this.possession = 'Red Man Duel (RED)';
+                    this.possessionTimeRed += dt;
+                    this.lastTouchPosition.copy(this.playerRed.root.position);
+                    this.ballLight.color.setHex(0xff2244);
+
+                    // 1. UNSTUCK KNOCK FREE: If pinned against wall/corner, pop ball out toward center pitch
+                    if (nearWall && this.aiStuckTimer > 0.25) {
+                        this.aiKickCooldown = 0.40;
+                        this.aiStuckTimer = 0;
+                        this.playerRed.triggerKick('left');
+                        const toCenterX = -bx;
+                        const toCenterZ = -bz;
+                        const cLen = Math.hypot(toCenterX, toCenterZ) || 1;
+                        this.ballBody.velocity.set(
+                            (toCenterX / cLen) * 16.0 - 4.0,
+                            4.2,
+                            (toCenterZ / cLen) * 16.0
+                        );
+                        audioFX.playKick(0.5);
+                        return;
+                    }
+
+                    // 2. c) FINISHING & CURVE SHOTS (When in shooting range of Green's goal x < -8.5)
+                    const inShootingRange = bx < -8.5 && rx >= bx - 0.5;
+                    // Also clear/counter-shoot if deep in Red's own penalty box under heavy pressure
+                    const emergencyClear = bx > 18.0 && distGreenToBall < 4.5 && rx >= bx - 0.4;
+
+                    if (inShootingRange || emergencyClear) {
+                        this.aiTacticalState = 'SHOOTING';
+                        this.aiKickCooldown = 0.55;
+                        this.playerRed.triggerKick('left');
+                        this.shotsRed++;
+                        this.lastTouchPosition.copy(this.playerRed.root.position);
+
+                        // Aim for the open corner away from the Green player
+                        const accuracy = aiCfg.shotAccuracy !== undefined ? aiCfg.shotAccuracy : 0.88;
+                        const targetCornerZ = (gz >= 0 ? -this.goalWidth * 0.36 : this.goalWidth * 0.36) +
+                            (Math.random() - 0.5) * (1.0 - accuracy) * 2.5;
+
+                        const sDirX = greenGoalX - bx;
+                        const sDirZ = targetCornerZ - bz;
+                        const sLen = Math.hypot(sDirX, sDirZ) || 1;
+
+                        const powerMult = emergencyClear ? 0.82 : (0.84 * diffMult);
+                        const shotSpeed = GAME_CONFIG.physics.shotMaxImpulse * powerMult;
+
+                        this.ballBody.velocity.set(
+                            (sDirX / sLen) * shotSpeed,
+                            emergencyClear ? 7.8 : (3.6 + Math.random() * 3.8),
+                            (sDirZ / sLen) * shotSpeed
+                        );
+
+                        // Apply Magnus Curve Spin bending the ball toward the open post
+                        const curveSpin = (targetCornerZ > bz ? -1 : 1) * 13.5;
+                        this.ballBody.angularVelocity.set(0, curveSpin, 9.0);
+
+                        audioFX.playKick(0.85);
+                        this.spawnSparks(this.ballMesh.position, 0xff2244, 24);
+                        this.autoDirectorTimer = 1.8;
+                        this.autoDirectorCut = 'closeup';
+                    } else if (rx >= bx - 0.45) {
+                        // 3. b) CONTROLLED FORWARD DRIBBLING WITH LATERAL EVASIVE STEERING
+                        this.aiTacticalState = 'DRIBBLING';
+                        this.aiKickCooldown = 0.12;
+
+                        let dribX = attackDirX;
+                        let dribZ = attackDirZ;
+
+                        // Evasive lateral cut if Green is closing in ahead of Red
+                        if (distGreenToBall < 5.2 && gx < bx + 1.0) {
+                            const evadeSign = (bz >= gz) ? 1 : -1;
+                            // Avoid steering directly out of bounds near sidelines
+                            const safeEvadeSign = Math.abs(bz) > (halfW - 3.5) ? -Math.sign(bz) : evadeSign;
+                            dribZ += safeEvadeSign * 0.68;
+                            const dNorm = Math.hypot(dribX, dribZ) || 1;
+                            dribX /= dNorm;
+                            dribZ /= dNorm;
+                        }
+
+                        const dribbleTouchSpeed = aiBaseSpeed * 1.16;
+                        this.ballBody.velocity.x = dribX * dribbleTouchSpeed;
+                        this.ballBody.velocity.z = dribZ * dribbleTouchSpeed;
+                    }
+                }
+            }
+
+            /**********************************************************************
+             * 7. BALL AERODYNAMICS (MAGNUS EFFECT), BOUNDARIES & GOAL DETECTION
+             **********************************************************************/
+            updateBallPhysics(dt) {
+                const physCfg = GAME_CONFIG.physics || {};
+                const v = this.ballBody.velocity;
+                const w = this.ballBody.angularVelocity;
+
+                // 1. Cap Maximum Linear Ball Speed so hard kicks never launch off-screen or tunnel through barriers
+                const maxSpeed = physCfg.maxBallSpeed || 27.5;
+                const currentSpeed = v.length();
+                if (currentSpeed > maxSpeed) {
+                    const scale = maxSpeed / currentSpeed;
+                    v.x *= scale;
+                    v.y *= scale;
+                    v.z *= scale;
+                }
+
+                // 2. Cap Maximum Angular Velocity (Spin) & Apply Turf Friction Spin Decay so the ball never spins endlessly
+                const maxSpinRps = physCfg.maxBallSpinRps || 5.5;
+                const maxOmega = maxSpinRps * Math.PI * 2;
+                const currentOmega = w.length();
+                if (currentOmega > maxOmega) {
+                    const wScale = maxOmega / currentOmega;
+                    w.x *= wScale;
+                    w.y *= wScale;
+                    w.z *= wScale;
+                }
+                // Progressive spin decay when rolling on or near turf, plus deadband stop
+                const spinDecay = this.ballBody.position.y <= (this.ballRadius + 0.15)
+                    ? Math.pow(0.22, dt)
+                    : Math.pow(0.52, dt);
+                w.x *= spinDecay;
+                w.y *= spinDecay;
+                w.z *= spinDecay;
+                if (w.length() < 0.35 && currentSpeed < 0.6) {
+                    w.set(0, 0, 0);
+                }
+
+                // 3. Apply Magnus Effect (Aerodynamic Curve): F_magnus = S * (omega x v)
+                // Dampen vertical Magnus lift (magY * 0.25) so high backspin never floats the ball into the sky
+                const magCoeff = physCfg.magnusEffectStrength !== undefined ? physCfg.magnusEffectStrength : 0.038;
+                const magX = magCoeff * (w.y * v.z - w.z * v.y);
+                const magY = magCoeff * (w.z * v.x - w.x * v.z) * 0.25;
+                const magZ = magCoeff * (w.x * v.y - w.y * v.x);
+                this.ballBody.applyForce(new CANNON.Vec3(magX, magY, magZ), this.ballBody.position);
+
+                // 4. Stadium Ceiling Height Clamp (Soft Energy-Dome Ceiling default 6.5m)
+                const ceilingHeight = physCfg.ceilingHeight || 6.5;
+                if (this.ballBody.position.y > ceilingHeight) {
+                    this.ballBody.position.y = ceilingHeight;
+                    if (v.y > 0) {
+                        v.y = -v.y * 0.42; // Soft downward deflection off ceiling dome
+                    }
+                }
+                // Prevent sinking below turf
+                if (this.ballBody.position.y < this.ballRadius) {
+                    this.ballBody.position.y = this.ballRadius;
+                    if (v.y < 0) v.y = -v.y * 0.5;
+                }
+
+                // 5. Pitch Boundary & Tight Out-of-Court Margin Containment
+                const bx = this.ballBody.position.x;
+                const by = this.ballBody.position.y;
+                const bz = this.ballBody.position.z;
+                const halfL = this.pitchLength / 2;
+                const halfW = this.pitchWidth / 2;
+                const halfG = this.goalWidth / 2;
+                const outMargin = physCfg.outOfBoundsMargin !== undefined ? physCfg.outOfBoundsMargin : 1.6;
+
+                // Sideline Touchline Bounce + Hard Outer Margin Safety Clamp
+                if (Math.abs(bz) > halfW) {
+                    const maxAllowedZ = halfW + Math.min(0.45, outMargin * 0.3);
+                    if (Math.abs(bz) >= maxAllowedZ) {
+                        this.ballBody.position.z = Math.sign(bz) * maxAllowedZ;
+                        if (Math.sign(v.z) === Math.sign(bz)) {
+                            v.z = -v.z * 0.72;
+                        }
+                    }
+                }
+
+                // Goal Line & End-Line Containment
+                if (Math.abs(bx) > halfL) {
+                    const insideGoalMouth = Math.abs(bz) < halfG && by < this.goalHeight;
+                    if (insideGoalMouth) {
+                        // Trigger goal when ball crosses into net
+                        if (this.goalCooldown <= 0 && Math.abs(bx) >= halfL + 0.55) {
+                            const scorer = bx > 0 ? 'GREEN' : 'RED';
+                            this.onGoalScored(scorer);
+                        }
+                        // Back-of-net physical stop so the ball stays inside the goal net depth (goalDepth = 2.8m)
+                        const maxNetBackX = halfL + this.goalDepth - this.ballRadius;
+                        if (Math.abs(bx) > maxNetBackX) {
+                            this.ballBody.position.x = Math.sign(bx) * maxNetBackX;
+                            v.x *= -0.25;
+                            v.z *= 0.5;
+                            w.scale(0.3, w);
+                        }
+                        // Side-net containment inside goal mouth
+                        if (Math.abs(bz) > halfG - this.ballRadius) {
+                            this.ballBody.position.z = Math.sign(bz) * (halfG - this.ballRadius);
+                            v.z *= -0.35;
+                        }
+                    } else {
+                        // Outside goalposts: allow at most a tiny out-of-court margin before rebounding back into play
+                        const maxAllowedX = halfL + Math.min(0.45, outMargin * 0.3);
+                        if (Math.abs(bx) >= maxAllowedX) {
+                            this.ballBody.position.x = Math.sign(bx) * maxAllowedX;
+                            if (Math.sign(v.x) === Math.sign(bx)) {
+                                v.x = -v.x * 0.72;
+                            }
+                        }
+                    }
+                }
+
+                // Sync Three.js Ball Mesh with Clamped Cannon.js Rigid Body
+                this.ballMesh.position.copy(this.ballBody.position);
+                this.ballMesh.quaternion.copy(this.ballBody.quaternion);
+
+                // Update Reactive Deformable Goal Net Meshes
+                this.nets.forEach(net => {
+                    if (net.rippleIntensity > 0.001) {
+                        net.rippleIntensity *= Math.pow(0.18, dt);
+                        const posAttr = net.mesh.geometry.attributes.position;
+                        const arr = posAttr.array;
+                        const orig = net.origCoords;
+                        const time = performance.now() * 0.022;
+
+                        for (let i = 0; i < arr.length; i += 3) {
+                            const ox = orig[i];
+                            const oy = orig[i + 1];
+                            const dist = Math.hypot(ox - net.impactPoint.z, oy - (net.impactPoint.y - this.goalHeight / 2));
+                            const wave = Math.sin(dist * 2.5 - time) * Math.exp(-dist * 0.35);
+                            arr[i + 2] = orig[i + 2] + wave * net.rippleIntensity * 1.35;
+                        }
+                        posAttr.needsUpdate = true;
+                    }
+                });
+            }
+
+            onGoalScored(scorer) {
+                this.goalCooldown = 3.5;
+                const ballSpeedKmh = Math.max(18, Math.round(this.ballBody.velocity.length() * 3.6));
+                if (ballSpeedKmh > this.topShotSpeedKmh) {
+                    this.topShotSpeedKmh = ballSpeedKmh;
+                }
+
+                // Calculate shot distance from last player touch to the goal line
+                const goalX = scorer === 'GREEN' ? (this.pitchLength / 2) : (-this.pitchLength / 2);
+                const shotDistMeters = Math.max(1.5, Math.hypot(
+                    goalX - this.lastTouchPosition.x,
+                    this.ballMesh.position.z - this.lastTouchPosition.z
+                )).toFixed(1);
+
+                // Deform Goal Net & Spawn Celebration Confetti/Sparks
+                const netIdx = scorer === 'GREEN' ? 1 : 0;
+                this.nets[netIdx].rippleIntensity = 1.0;
+                this.nets[netIdx].impactPoint.copy(this.ballMesh.position);
+                this.spawnSparks(this.ballMesh.position, scorer === 'GREEN' ? 0x00ff66 : 0xff2244, 65);
+
+                audioFX.playGoalRoar();
+
+                if (scorer === 'GREEN') {
+                    this.scoreGreen++;
+                    document.getElementById('score-green').textContent = this.scoreGreen;
+                    this.playerGreen.triggerCelebration();
+                } else {
+                    this.scoreRed++;
+                    document.getElementById('score-red').textContent = this.scoreRed;
+                    this.playerRed.triggerCelebration();
+                }
+
+                // Format timestamps (remaining & elapsed in the 5:00 match)
+                const remSec = Math.max(0, Math.floor(this.matchTimeRemaining));
+                const elapSec = Math.max(0, this.matchDurationSeconds - remSec);
+                const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+                const contestantFullName = `${this.contestant.firstName} ${this.contestant.lastName}`.trim() || 'Contestant';
+                const goalEntry = {
+                    goalNumber: this.goalHistory.length + 1,
+                    scorerKey: scorer,
+                    teamName: scorer === 'GREEN' ? contestantFullName : 'Red Man Duel',
+                    clockRemaining: fmtTime(remSec),
+                    clockElapsed: fmtTime(elapSec),
+                    speedKmh: ballSpeedKmh,
+                    distanceMeters: shotDistMeters,
+                    scoreline: `${this.scoreGreen} - ${this.scoreRed}`
+                };
+                this.goalHistory.push(goalEntry);
+                this.renderGoalLogHUD();
+
+                if (scorer === 'GREEN') {
+                    this.showEventBanner(
+                        `GOAL #${goalEntry.goalNumber} // ${contestantFullName.toUpperCase()}!`,
+                        `${ballSpeedKmh} KM/H FROM ${shotDistMeters}M (${goalEntry.clockRemaining} REM) // SCORE ${goalEntry.scoreline}`,
+                        '#00ff66'
+                    );
+                } else {
+                    this.showEventBanner(
+                        `GOAL #${goalEntry.goalNumber} // RED MAN DUEL!`,
+                        `${ballSpeedKmh} KM/H FROM ${shotDistMeters}M (${goalEntry.clockRemaining} REM) // SCORE ${goalEntry.scoreline}`,
+                        '#ff2244'
+                    );
+                }
+
+                // Trigger Automatic Broadcast Instant Replay after 1.1 seconds of celebration
+                setTimeout(() => {
+                    if (!this.isReplaying && !this.isFullTime) {
+                        this.enterInstantReplay();
+                    }
+                }, 1100);
+            }
+
+            renderGoalLogHUD() {
+                const countBadge = document.getElementById('goal-log-count-badge');
+                const emptyEl = document.getElementById('goal-log-empty');
+                const listEl = document.getElementById('goal-log-list');
+                if (!countBadge || !listEl) return;
+
+                const total = this.goalHistory.length;
+                countBadge.textContent = `${total} ${total === 1 ? 'GOAL' : 'GOALS'}`;
+
+                if (total === 0) {
+                    if (emptyEl) emptyEl.classList.remove('hidden');
+                    listEl.innerHTML = '';
+                    return;
+                }
+
+                if (emptyEl) emptyEl.classList.add('hidden');
+                listEl.innerHTML = this.goalHistory.slice().reverse().map(g => {
+                    const isGreen = g.scorerKey === 'GREEN';
+                    const accentBorder = isGreen ? 'border-l-[#00ff66]' : 'border-l-[#ff2244]';
+                    const teamColor = isGreen ? 'text-emerald-300' : 'text-rose-300';
+                    return `
+                        <div class="bg-slate-900/90 border border-slate-800 border-l-4 ${accentBorder} rounded-lg px-2.5 py-1.5 text-[11px] flex items-center justify-between">
+                            <div>
+                                <div class="font-display font-bold ${teamColor} flex items-center space-x-1.5">
+                                    <span>#${g.goalNumber} ${g.teamName}</span>
+                                </div>
+                                <div class="font-mono-code text-[10px] text-slate-400">
+                                    ${g.clockRemaining} left (${g.clockElapsed} elap) • ${g.speedKmh} km/h • ${g.distanceMeters}m
+                                </div>
+                            </div>
+                            <div class="font-display font-black text-xs px-2 py-0.5 rounded bg-slate-950 text-white border border-slate-700">
+                                ${g.scoreline}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            triggerFullTime() {
+                if (this.isFullTime) return;
+                this.isFullTime = true;
+                this.matchTimeRemaining = 0;
+                if (this.isReplaying) {
+                    this.exitInstantReplay();
+                }
+
+                audioFX.playWhistle();
+                setTimeout(() => audioFX.playWhistle(), 420);
+
+                // Populate Full-Time Modal
+                document.getElementById('ft-score-green').textContent = this.scoreGreen;
+                document.getElementById('ft-score-red').textContent = this.scoreRed;
+                document.getElementById('ft-stat-goals').textContent = this.goalHistory.length;
+                document.getElementById('ft-stat-shots').textContent = `${this.shotsGreen} / ${this.shotsRed}`;
+                document.getElementById('ft-stat-topspeed').textContent = `${this.topShotSpeedKmh} KM/H`;
+
+                const totalPoss = this.possessionTimeGreen + this.possessionTimeRed;
+                const greenPossPct = Math.round((this.possessionTimeGreen / totalPoss) * 100);
+                const redPossPct = 100 - greenPossPct;
+                document.getElementById('ft-stat-possession').textContent = `${greenPossPct}% / ${redPossPct}%`;
+
+                const winnerNameUpper = (`${this.contestant.firstName} ${this.contestant.lastName}`.trim() || 'CONTESTANT').toUpperCase();
+                const bannerEl = document.getElementById('ft-winner-banner');
+                const subEl = document.getElementById('ft-winner-subtitle');
+                if (this.scoreGreen > this.scoreRed) {
+                    bannerEl.textContent = `${winnerNameUpper} WINS!`;
+                    bannerEl.className = 'font-display text-2xl md:text-3xl font-black tracking-wider text-[#00ff66] glow-green';
+                    subEl.textContent = `VICTORY BY ${this.scoreGreen - this.scoreRed} ${this.scoreGreen - this.scoreRed === 1 ? 'GOAL' : 'GOALS'} // 5:00 REGULATION COMPLETE`;
+                    this.playerGreen.triggerCelebration();
+                } else if (this.scoreRed > this.scoreGreen) {
+                    bannerEl.textContent = 'RED MAN DUEL WINS!';
+                    bannerEl.className = 'font-display text-2xl md:text-3xl font-black tracking-wider text-[#ff2244] glow-red';
+                    subEl.textContent = `RED MAN DUEL TAKES THE 5:00 MATCH (${this.scoreGreen} - ${this.scoreRed})`;
+                    this.playerRed.triggerCelebration();
+                } else {
+                    bannerEl.textContent = 'FULL TIME // REGULATION DRAW!';
+                    bannerEl.className = 'font-display text-2xl md:text-3xl font-black tracking-wider text-cyan-300 glow-blue';
+                    subEl.textContent = `DEADLOCKED AT ${this.scoreGreen} - ${this.scoreRed} AFTER 5:00 OF ACTION`;
+                }
+
+                // Populate Chronological Goal Table
+                const tableBody = document.getElementById('ft-goal-table-body');
+                if (this.goalHistory.length === 0) {
+                    tableBody.innerHTML = `
+                        <div class="text-xs text-slate-400 italic text-center py-6">
+                            Scoreless 0 - 0 defensive battle — No goals scored during the 5:00 regulation period.
+                        </div>
+                    `;
+                } else {
+                    tableBody.innerHTML = this.goalHistory.map(g => {
+                        const isGreen = g.scorerKey === 'GREEN';
+                        const badgeClass = isGreen
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+                        return `
+                            <div class="flex items-center justify-between bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-2 text-xs">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="font-mono-code font-bold px-2 py-0.5 rounded border ${badgeClass}">GOAL #${g.goalNumber}</span>
+                                    <span class="font-display font-bold text-white">${g.teamName}</span>
+                                </div>
+                                <div class="flex items-center space-x-3 font-mono-code text-[11px] text-slate-300">
+                                    <span>${g.clockRemaining} REM (${g.clockElapsed})</span>
+                                    <span class="text-cyan-300">${g.speedKmh} KM/H</span>
+                                    <span class="text-amber-300">${g.distanceMeters}M</span>
+                                    <span class="font-display font-black text-white px-2 py-0.5 rounded bg-slate-950 border border-slate-700">${g.scoreline}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                document.getElementById('fulltime-modal').classList.remove('hidden');
+                this.submitTournamentScore();
+            }
+
+            startNewMatch() {
+                this.isFullTime = false;
+                document.getElementById('fulltime-modal').classList.add('hidden');
+
+                const configuredDuration = (GAME_CONFIG.matchSettings && GAME_CONFIG.matchSettings.matchDurationSeconds)
+                    || GAME_CONFIG.meta.matchDurationSeconds
+                    || 300;
+                this.matchDurationSeconds = configuredDuration;
+                this.matchTimeRemaining = configuredDuration;
+
+                this.scoreGreen = 0;
+                this.scoreRed = 0;
+                document.getElementById('score-green').textContent = '0';
+                document.getElementById('score-red').textContent = '0';
+
+                this.goalHistory = [];
+                this.replayBuffer = [];
+                this.shotsGreen = 0;
+                this.shotsRed = 0;
+                this.topShotSpeedKmh = 0;
+                this.possessionTimeGreen = 0.001;
+                this.possessionTimeRed = 0.001;
+                this.goalCooldown = 0;
+                this.possession = 'NEUTRAL';
+
+                this.renderGoalLogHUD();
+                this.exitInstantReplay();
+                this.resetPositions();
+                audioFX.playWhistle();
+            }
+
+            showEventBanner(title, subtitle, borderColor) {
+                const banner = document.getElementById('event-banner');
+                const titleEl = document.getElementById('event-title');
+                const subEl = document.getElementById('event-subtitle');
+
+                titleEl.textContent = title;
+                subEl.textContent = subtitle;
+                banner.style.borderColor = borderColor;
+                banner.classList.remove('hidden', 'scale-90', 'opacity-0');
+                banner.classList.add('scale-100', 'opacity-100');
+
+                setTimeout(() => {
+                    banner.classList.add('scale-90', 'opacity-0');
+                    setTimeout(() => banner.classList.add('hidden'), 300);
+                }, 3200);
+            }
+
+            /**********************************************************************
+             * 8. MULTI-CAMERA BROADCAST SUITE & AUTO-DIRECTOR
+             **********************************************************************/
+            updateCameraSystem(dt) {
+                if (this.isReplaying) {
+                    this.updateReplayCamera(dt);
+                    return;
+                }
+
+                const bPos = this.ballMesh.position;
+                const gPos = this.playerGreen.root.position;
+                const rPos = this.playerRed.root.position;
+
+                let activeMode = this.cameraMode;
+
+                // Mode 5: Auto-Director dynamically cuts between Broadcast Wide, Low Dolly & Action Closeups
+                if (this.cameraMode === 5) {
+                    if (this.autoDirectorTimer > 0) {
+                        this.autoDirectorTimer -= dt;
+                        activeMode = 3; // Cut to Cinema Low-Angle Dolly on shots & tackles
+                    } else if (Math.abs(bPos.x) > 21) {
+                        activeMode = 2; // Third-person dramatic push in penalty box
+                    } else {
+                        activeMode = 1; // Broadcast Wide
+                    }
+                }
+
+                const desiredPos = new THREE.Vector3();
+                const desiredLook = new THREE.Vector3();
+
+                switch (activeMode) {
+                    case 1: // Broadcast Wide TV Sideline with Dynamic Zoom
+                        desiredPos.set(bPos.x * 0.68, 17.5 - Math.abs(bPos.z) * 0.15, 29.0 + bPos.z * 0.32);
+                        desiredLook.set(bPos.x * 0.85, 0.8, bPos.z * 0.5);
+                        break;
+
+                    case 2: // Third-Person Action Cam (Over-the-shoulder behind Green Player looking toward Ball/Goal)
+                        {
+                            const toBall = new THREE.Vector3().subVectors(bPos, gPos).setY(0).normalize();
+                            if (toBall.lengthSq() < 0.01) toBall.set(1, 0, 0);
+                            desiredPos.copy(gPos).addScaledVector(toBall, -7.2).add(new THREE.Vector3(0, 3.6, 0));
+                            desiredLook.copy(bPos).add(new THREE.Vector3(0, 1.1, 0));
+                        }
+                        break;
+
+                    case 3: // Cinema Low-Angle Sideline Dolly
+                        desiredPos.set(bPos.x * 0.85 - 3.5, 2.35, Math.sign(bPos.z || 1) * 12.5);
+                        desiredLook.set(bPos.x, Math.max(1.1, bPos.y), bPos.z);
+                        break;
+
+                    case 4: // Goalie / Net Cam (Inside Red Opponent's Goal looking out at the pitch)
+                        desiredPos.set(this.pitchLength / 2 + 1.9, 2.3, bPos.z * 0.25);
+                        desiredLook.set(bPos.x, Math.max(1.0, bPos.y), bPos.z);
+                        break;
+                }
+
+                // Smooth Cinematic Camera Damping
+                const smooth = 1.0 - Math.pow(1.0 - GAME_CONFIG.cameraSystem.smoothingFactor, dt * 60);
+                this.camera.position.lerp(desiredPos, smooth);
+                this.currentLookAt.lerp(desiredLook, smooth * 1.3);
+                this.camera.lookAt(this.currentLookAt);
+
+                // Dynamic FOV Push during Sprint or Power Shots
+                const isSprinting = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) && this.playerGreen.stamina > 5;
+                const targetFOV = GAME_CONFIG.visuals.baseCameraFOV + (isSprinting ? GAME_CONFIG.cameraSystem.sprintFovBoost : 0);
+                this.camera.fov += (targetFOV - this.camera.fov) * dt * 6;
+                this.camera.updateProjectionMatrix();
+            }
+
+            /**********************************************************************
+             * 9. INSTANT REPLAY RING BUFFER & BULLET-TIME PLAYBACK SUITE
+             **********************************************************************/
+            recordReplayFrame() {
+                const frame = {
+                    ballPos: this.ballMesh.position.clone(),
+                    ballQuat: this.ballMesh.quaternion.clone(),
+                    greenPose: this.playerGreen.serializePose(),
+                    redPose: this.playerRed.serializePose()
+                };
+                this.replayBuffer.push(frame);
+                if (this.replayBuffer.length > this.maxReplayFrames) {
+                    this.replayBuffer.shift();
+                }
+            }
+
+            enterInstantReplay() {
+                if (this.replayBuffer.length < 10) return;
+                this.isReplaying = true;
+                this.replayPaused = false;
+                this.replayIndex = Math.max(0, this.replayBuffer.length - 180); // Start 3 seconds prior to trigger
+                this.replayOrbitAngle = 0;
+
+                document.getElementById('replay-hud').classList.remove('hidden');
+                const scrubber = document.getElementById('replay-scrubber');
+                scrubber.max = this.replayBuffer.length - 1;
+                scrubber.value = Math.floor(this.replayIndex);
+            }
+
+            exitInstantReplay() {
+                this.isReplaying = false;
+                document.getElementById('replay-hud').classList.add('hidden');
+                if (this.goalCooldown > 0) {
+                    this.goalCooldown = 0;
+                    this.resetPositions();
+                    audioFX.playWhistle();
+                }
+            }
+
+            updateReplayPlayback(dt) {
+                if (!this.replayPaused) {
+                    this.replayIndex += dt * 60 * this.replaySpeed;
+                    if (this.replayIndex >= this.replayBuffer.length) {
+                        this.replayIndex = 0; // Loop replay buffer seamlessly
+                    }
+                }
+
+                const idx = Math.min(this.replayBuffer.length - 1, Math.max(0, Math.floor(this.replayIndex)));
+                const frame = this.replayBuffer[idx];
+                if (!frame) return;
+
+                // Apply recorded poses
+                this.ballMesh.position.copy(frame.ballPos);
+                this.ballMesh.quaternion.copy(frame.ballQuat);
+                this.playerGreen.applySerializedPose(frame.greenPose);
+                this.playerRed.applySerializedPose(frame.redPose);
+
+                // Update Replay Scrubber UI
+                document.getElementById('replay-scrubber').value = idx;
+                document.getElementById('replay-frame-counter').textContent =
+                    `FRM ${String(idx).padStart(3, '0')}/${String(this.replayBuffer.length).padStart(3, '0')}`;
+                const secAgo = ((this.replayBuffer.length - 1 - idx) / 60).toFixed(1);
+                document.getElementById('replay-time-offset').textContent = `-${secAgo}s`;
+            }
+
+            updateReplayCamera(dt) {
+                const bPos = this.ballMesh.position;
+                const gPos = this.playerGreen.root.position;
+                this.replayOrbitAngle += dt * 0.85;
+
+                if (this.replayCamMode === 'orbit') {
+                    // Matrix Bullet-Time 360 Orbit around the Ball & Action
+                    const radius = 6.8;
+                    this.camera.position.set(
+                        bPos.x + Math.cos(this.replayOrbitAngle) * radius,
+                        2.2 + Math.sin(this.replayOrbitAngle * 0.5) * 0.8,
+                        bPos.z + Math.sin(this.replayOrbitAngle) * radius
+                    );
+                    this.camera.lookAt(bPos.x, Math.max(0.8, bPos.y), bPos.z);
+                } else if (this.replayCamMode === 'striker') {
+                    // Hero Striker Low-Angle Closeup
+                    this.camera.position.set(gPos.x + 2.6, 1.25, gPos.z + 2.8);
+                    this.camera.lookAt(gPos.x, 1.15, gPos.z);
+                } else if (this.replayCamMode === 'goalline') {
+                    // Dramatic Goal-Line Sweep Cam
+                    const targetGoalX = bPos.x >= 0 ? this.pitchLength / 2 : -this.pitchLength / 2;
+                    this.camera.position.set(targetGoalX - Math.sign(targetGoalX) * 0.5, 1.8, 6.2);
+                    this.camera.lookAt(bPos.x, Math.max(0.9, bPos.y), bPos.z);
+                }
+            }
+
+            /**********************************************************************
+             * 10. HUD TELEMETRY & JSON HOT-RELOAD SYNCHRONIZATION
+             **********************************************************************/
+            updateHUD(dt) {
+                // 5-Minute Match Countdown Clock (Pauses during Replay, Goal Celebrations, and Full-Time Modal)
+                const clockPaused = this.isReplaying || this.goalCooldown > 0 || this.isFullTime;
+                if (!clockPaused) {
+                    this.matchTimeRemaining = Math.max(0, this.matchTimeRemaining - dt);
+                    if (this.matchTimeRemaining <= 0 && !this.isFullTime) {
+                        this.triggerFullTime();
+                    }
+                }
+
+                const mins = Math.floor(this.matchTimeRemaining / 60);
+                const secs = Math.floor(this.matchTimeRemaining % 60);
+                const clockEl = document.getElementById('match-clock');
+                const dotEl = document.getElementById('clock-status-dot');
+                clockEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+                // Visual Urgency Styling (Amber under 01:00, Pulsing Red under 00:15)
+                if (this.matchTimeRemaining <= 15) {
+                    clockEl.className = 'font-display text-lg md:text-xl font-black text-rose-400 glow-red tracking-widest animate-pulse';
+                    if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-rose-500 animate-ping';
+                } else if (this.matchTimeRemaining <= 60) {
+                    clockEl.className = 'font-display text-lg md:text-xl font-bold text-amber-300 tracking-widest';
+                    if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+                } else {
+                    clockEl.className = 'font-display text-lg md:text-xl font-bold text-white tracking-widest';
+                    if (dotEl) dotEl.className = clockPaused
+                        ? 'w-2 h-2 rounded-full bg-cyan-400'
+                        : 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+                }
+
+                // Possession & Stamina & Shot Charge
+                document.getElementById('possession-badge').textContent = `BALL: ${this.possession}`;
+                document.getElementById('player-state-label').textContent = this.playerGreen.currentAction;
+                const aiBadge = document.getElementById('ai-state-badge');
+                if (aiBadge) {
+                    aiBadge.textContent = `RED MAN DUEL: ${this.aiTacticalState}`;
+                }
+
+                const stam = Math.round(this.playerGreen.stamina);
+                const isUnlimited = GAME_CONFIG.playerPhysics &&
+                    (GAME_CONFIG.playerPhysics.unlimitedStamina || GAME_CONFIG.playerPhysics.staminaDrainRate <= 0);
+                document.getElementById('stamina-pct').textContent = isUnlimited ? `${stam}% ∞` : `${stam}%`;
+                document.getElementById('stamina-bar').style.width = `${stam}%`;
+
+                const chargePct = Math.round(this.shotCharge * 100);
+                document.getElementById('shot-power-pct').textContent = `${chargePct}%`;
+                document.getElementById('shot-power-bar').style.width = `${chargePct}%`;
+
+                // Slide Tackle Cooldown HUD Bar
+                const slideCdEl = document.getElementById('slide-cd-label');
+                const slideBarEl = document.getElementById('slide-cd-bar');
+                if (slideCdEl && slideBarEl) {
+                    const maxCd = (GAME_CONFIG.playerPhysics && GAME_CONFIG.playerPhysics.slideCooldownSeconds) || 2.5;
+                    if (this.greenSlideCooldown > 0.05) {
+                        const pctReady = Math.max(0, Math.min(100, ((maxCd - this.greenSlideCooldown) / maxCd) * 100));
+                        slideCdEl.textContent = `COOLDOWN ${this.greenSlideCooldown.toFixed(1)}S`;
+                        slideCdEl.className = 'font-mono-code text-rose-400';
+                        slideBarEl.className = 'h-full bg-gradient-to-r from-rose-500 to-amber-400 transition-all duration-75';
+                        slideBarEl.style.width = `${pctReady}%`;
+                    } else {
+                        slideCdEl.textContent = 'READY';
+                        slideCdEl.className = 'font-mono-code text-cyan-300';
+                        slideBarEl.className = 'h-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-75';
+                        slideBarEl.style.width = '100%';
+                    }
+                }
+
+                // Ball Velocity & Spin Radar
+                const speedKmh = Math.round(this.ballBody.velocity.length() * 3.6);
+                if (!this.isReplaying && speedKmh > this.topShotSpeedKmh) {
+                    this.topShotSpeedKmh = speedKmh;
+                }
+                const spinRps = (this.ballBody.angularVelocity.length() / (Math.PI * 2)).toFixed(1);
+                document.getElementById('telemetry-speed').textContent = `${speedKmh} KM/H`;
+                document.getElementById('telemetry-spin').textContent = `${spinRps} RPS`;
+            }
+
+
+            /**********************************************************************
+             * 11. EVENT LISTENERS & UI CONTROLS
+             **********************************************************************/
+            bindEvents() {
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+
+                window.addEventListener('blur', () => {
+                    this.keys = {};
+                    this.isChargingShot = false;
+                    this.shotCharge = 0;
+                });
+
+                window.addEventListener('keydown', (e) => {
+                    if (!this.isRegistered) return;
+                    this.keys[e.code] = true;
+                    if (e.repeat) return;
+
+                    if (e.code === 'Space' && !this.isReplaying && !this.isFullTime) {
+                        e.preventDefault();
+                        this.isChargingShot = true;
+                    }
+                    if ((e.code === 'KeyE' || e.code === 'KeyX') && !this.isReplaying && !this.isFullTime) {
+                        this.executePlayerKick(true);
+                    }
+                    if (e.code === 'KeyC') {
+                        this.setCameraMode((this.cameraMode % 5) + 1);
+                    }
+                    if (e.code === 'KeyR') {
+                        if (this.isReplaying) this.exitInstantReplay();
+                        else if (!this.isFullTime) this.enterInstantReplay();
+                    }
+                    if (e.code === 'KeyV') {
+                        this.toggleVideoRecording();
+                    }
+                    if (e.code === 'Escape' && this.isReplaying) {
+                        this.exitInstantReplay();
+                    }
+                    if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) {
+                        this.setCameraMode(parseInt(e.code.replace('Digit', ''), 10));
+                    }
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                    if (e.code === 'Space' && this.isChargingShot) {
+                        this.isChargingShot = false;
+                        this.executePlayerKick(false);
+                    }
+                });
+
+                // Camera Dock Buttons
+                document.querySelectorAll('.cam-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.setCameraMode(parseInt(btn.dataset.cam, 10));
+                    });
+                });
+
+                // Instant Replay Suite Controls
+                document.getElementById('btn-trigger-replay').addEventListener('click', () => {
+                    if (this.isReplaying) this.exitInstantReplay();
+                    else this.enterInstantReplay();
+                });
+
+                document.getElementById('btn-exit-replay').addEventListener('click', () => {
+                    this.exitInstantReplay();
+                });
+
+                const recTopBtn = document.getElementById('btn-record-video-top');
+                if (recTopBtn) {
+                    recTopBtn.addEventListener('click', () => this.toggleVideoRecording());
+                }
+                const recRepBtn = document.getElementById('btn-record-replay-clip');
+                if (recRepBtn) {
+                    recRepBtn.addEventListener('click', () => this.toggleVideoRecording());
+                }
+
+                const playPauseBtn = document.getElementById('btn-rep-playpause');
+                playPauseBtn.addEventListener('click', () => {
+                    this.replayPaused = !this.replayPaused;
+                    playPauseBtn.textContent = this.replayPaused ? 'PLAY' : 'PAUSE';
+                });
+
+                document.getElementById('replay-scrubber').addEventListener('input', (e) => {
+                    this.replayPaused = true;
+                    playPauseBtn.textContent = 'PLAY';
+                    this.replayIndex = parseFloat(e.target.value);
+                });
+
+                document.querySelectorAll('.rep-speed-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.replaySpeed = parseFloat(btn.dataset.speed);
+                        document.getElementById('replay-speed-badge').textContent = `${this.replaySpeed}x PLAYBACK`;
+                        document.querySelectorAll('.rep-speed-btn').forEach(b => {
+                            b.className = 'rep-speed-btn px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs font-bold text-slate-300';
+                        });
+                        btn.className = 'rep-speed-btn px-2.5 py-1.5 rounded-lg bg-cyan-500/25 border border-cyan-400 text-xs font-bold text-white';
+                    });
+                });
+
+                document.querySelectorAll('.rep-cam-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.replayCamMode = btn.dataset.repCam;
+                        document.querySelectorAll('.rep-cam-btn').forEach(b => {
+                            b.className = 'rep-cam-btn text-xs font-bold px-2.5 py-1 rounded bg-slate-800/80 border border-slate-600 text-slate-300';
+                        });
+                        btn.className = 'rep-cam-btn active text-xs font-bold px-2.5 py-1 rounded bg-cyan-500/20 border border-cyan-400 text-cyan-200';
+                    });
+                });
+
+
+                // Audio & Match Reset
+                document.getElementById('btn-audio-toggle').addEventListener('click', () => {
+                    const on = audioFX.toggle();
+                    document.getElementById('icon-audio-on').classList.toggle('text-emerald-400', on);
+                    document.getElementById('icon-audio-on').classList.toggle('text-slate-500', !on);
+                });
+
+                const retrySubmitBtn = document.getElementById('btn-retry-submit');
+                if (retrySubmitBtn) {
+                    retrySubmitBtn.addEventListener('click', () => {
+                        this.submitTournamentScore();
+                    });
+                }
+
+                // Collapsible Goal Log HUD Panel Toggle
+                const toggleGoalLogBtn = document.getElementById('btn-toggle-goallog');
+                if (toggleGoalLogBtn) {
+                    toggleGoalLogBtn.addEventListener('click', () => {
+                        const body = document.getElementById('goal-log-body');
+                        const chev = document.getElementById('goal-log-chevron');
+                        const isHidden = body.classList.toggle('hidden');
+                        chev.textContent = isHidden ? '▶' : '▼';
+                    });
+                }
+            }
+
+            setCameraMode(mode) {
+                this.cameraMode = mode;
+                document.querySelectorAll('.cam-btn').forEach(btn => {
+                    btn.classList.toggle('active', parseInt(btn.dataset.cam, 10) === mode);
+                });
+                const names = {
+                    1: 'BROADCAST WIDE',
+                    2: 'ACTION 3RD-PERSON',
+                    3: 'LOW SIDELINE DOLLY',
+                    4: 'GOALIE NET CAM',
+                    5: 'AUTO-DIRECTOR: ON'
+                };
+                document.getElementById('active-cam-indicator').textContent = names[mode] || 'BROADCAST';
+            }
+
+            /**********************************************************************
+             * 12. BUILT-IN 60 FPS VIDEO RECORDER WITH WORLD WIDE SOCCER WATERMARK
+             **********************************************************************/
+            toggleVideoRecording() {
+                if (this.isRecordingVideo) {
+                    this.stopVideoRecording();
+                } else {
+                    this.startVideoRecording();
+                }
+            }
+
+            startVideoRecording() {
+                if (this.isRecordingVideo) return;
+                try {
+                    // Create an offscreen composite canvas so the exported video includes the 3D WebGL scene
+                    // AND the burned-in "WORLD WIDE SOCCER // RED MAN DUEL" tournament broadcast watermark
+                    this.recordCanvas = document.createElement('canvas');
+                    this.recordCanvas.width = this.renderer.domElement.width;
+                    this.recordCanvas.height = this.renderer.domElement.height;
+                    this.recordCtx = this.recordCanvas.getContext('2d');
+
+                    const stream = this.recordCanvas.captureStream(60);
+                    const mimeCandidates = [
+                        'video/mp4;codecs=avc1.42E01E',
+                        'video/webm;codecs=vp9',
+                        'video/webm;codecs=vp8',
+                        'video/webm'
+                    ];
+                    let selectedMime = '';
+                    for (const mime of mimeCandidates) {
+                        if (window.MediaRecorder && MediaRecorder.isTypeSupported(mime)) {
+                            selectedMime = mime;
+                            break;
+                        }
+                    }
+
+                    this.recordedChunks = [];
+                    this.mediaRecorder = selectedMime
+                        ? new MediaRecorder(stream, { mimeType: selectedMime, videoBitsPerSecond: 12000000 })
+                        : new MediaRecorder(stream);
+
+                    this.mediaRecorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) {
+                            this.recordedChunks.push(e.data);
+                        }
+                    };
+
+                    this.mediaRecorder.onstop = () => {
+                        const blobType = selectedMime || 'video/webm';
+                        const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
+                        const blob = new Blob(this.recordedChunks, { type: blobType });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                        a.href = url;
+                        a.download = `World_Wide_Soccer_Red_Man_Duel_${stamp}.${ext}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 5000);
+                        this.showEventBanner(
+                            'VIDEO CLIP EXPORTED!',
+                            `SAVED WORLD WIDE SOCCER REPLAY (.${ext.toUpperCase()}) TO DOWNLOADS`,
+                            '#00d2ff'
+                        );
+                    };
+
+                    this.mediaRecorder.start(100);
+                    this.isRecordingVideo = true;
+                    this.updateRecordingButtonsUI(true);
+                } catch (err) {
+                    console.error('Video Recording Error:', err);
+                }
+            }
+
+            stopVideoRecording() {
+                if (!this.isRecordingVideo || !this.mediaRecorder) return;
+                this.isRecordingVideo = false;
+                if (this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                }
+                this.updateRecordingButtonsUI(false);
+            }
+
+            updateRecordingButtonsUI(recording) {
+                const topLbl = document.getElementById('top-rec-label');
+                const topInd = document.getElementById('top-rec-indicator');
+                const repTxt = document.getElementById('rep-rec-text');
+                if (topLbl) topLbl.textContent = recording ? 'STOP & SAVE (V)' : 'REC VIDEO (V)';
+                if (topInd) {
+                    topInd.className = recording
+                        ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping'
+                        : 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                }
+                if (repTxt) repTxt.textContent = recording ? 'STOP & DOWNLOAD CLIP (V)' : 'EXPORT REPLAY VIDEO (V)';
+            }
+
+            compositeRecordingFrame() {
+                if (!this.isRecordingVideo || !this.recordCtx || !this.recordCanvas) return;
+                const glCanvas = this.renderer.domElement;
+                if (this.recordCanvas.width !== glCanvas.width || this.recordCanvas.height !== glCanvas.height) {
+                    this.recordCanvas.width = glCanvas.width;
+                    this.recordCanvas.height = glCanvas.height;
+                }
+                const ctx = this.recordCtx;
+                const w = this.recordCanvas.width;
+                const h = this.recordCanvas.height;
+
+                // 1. Draw live 3D WebGL frame
+                ctx.drawImage(glCanvas, 0, 0, w, h);
+
+                // 2. Burn in Official "WORLD WIDE SOCCER" Tournament Broadcast Watermark (Top-Right)
+                const scale = Math.max(0.75, w / 1440);
+                const boxW = Math.round(330 * scale);
+                const boxH = Math.round(64 * scale);
+                const padX = Math.round(28 * scale);
+                const padY = Math.round(24 * scale);
+                const bx = w - boxW - padX;
+                const by = padY;
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(7, 11, 20, 0.78)';
+                ctx.strokeStyle = 'rgba(0, 210, 255, 0.65)';
+                ctx.lineWidth = Math.max(1.5, 2 * scale);
+                ctx.beginPath();
+                ctx.roundRect(bx, by, boxW, boxH, Math.round(12 * scale));
+                ctx.fill();
+                ctx.stroke();
+
+                // Left neon green accent bar on watermark
+                ctx.fillStyle = '#00ff66';
+                ctx.fillRect(bx, by + Math.round(8 * scale), Math.round(5 * scale), boxH - Math.round(16 * scale));
+
+                ctx.textAlign = 'right';
+                ctx.font = `900 ${Math.round(18 * scale)}px Orbitron, sans-serif`;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('WORLD WIDE SOCCER', bx + boxW - Math.round(16 * scale), by + Math.round(28 * scale));
+
+                ctx.font = `700 ${Math.round(12 * scale)}px Rajdhani, sans-serif`;
+                ctx.fillStyle = '#00ff66';
+                ctx.fillText('RED MAN DUEL // GLOBAL TOURNAMENT FEED', bx + boxW - Math.round(16 * scale), by + Math.round(48 * scale));
+
+                // 3. Burn in live Score & Clock pill (Top-Left)
+                const sBoxW = Math.round(360 * scale);
+                const sBoxH = Math.round(54 * scale);
+                ctx.fillStyle = 'rgba(7, 11, 20, 0.78)';
+                ctx.strokeStyle = 'rgba(0, 255, 102, 0.55)';
+                ctx.beginPath();
+                ctx.roundRect(padX, by, sBoxW, sBoxH, Math.round(10 * scale));
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.textAlign = 'left';
+                ctx.font = `900 ${Math.round(16 * scale)}px Orbitron, sans-serif`;
+                ctx.fillStyle = '#00ff66';
+                ctx.fillText(`CCC ${this.scoreGreen}`, padX + Math.round(16 * scale), by + Math.round(33 * scale));
+
+                ctx.fillStyle = '#ffffff';
+                const clockStr = document.getElementById('match-clock') ? document.getElementById('match-clock').textContent : '05:00';
+                ctx.fillText(`//  ${clockStr}  //`, padX + Math.round(105 * scale), by + Math.round(33 * scale));
+
+                ctx.fillStyle = '#ff2244';
+                ctx.fillText(`RED ${this.scoreRed}`, padX + Math.round(248 * scale), by + Math.round(33 * scale));
+                ctx.restore();
+            }
+
+            /**********************************************************************
+             * 13. MAIN SIMULATION & RENDERING LOOP
+             **********************************************************************/
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                const rawDt = this.clock.getDelta();
+                const dt = Math.min(rawDt, 0.05);
+
+                if (!this.isRegistered) {
+                    // Gently orbit camera around the stadium while registration splash is active
+                    const idleAngle = performance.now() * 0.00022;
+                    this.camera.position.set(Math.sin(idleAngle) * 26, 16.5, Math.cos(idleAngle) * 26);
+                    this.camera.lookAt(0, 1.0, 0);
+                    this.renderer.render(this.scene, this.camera);
+                    return;
+                }
+
+                if (this.isReplaying) {
+                    this.updateReplayPlayback(dt);
+                } else if (!this.isFullTime) {
+                    if (this.goalCooldown > 0) {
+                        this.goalCooldown -= dt;
+                        if (this.goalCooldown <= 0) {
+                            this.goalCooldown = 0;
+                            this.resetPositions();
+                            audioFX.playWhistle();
+                        }
+                    }
+                    // Step 3D Rigid-Body Physics Engine
+                    this.world.step(1 / 60, dt, 3);
+
+                    this.handlePlayerControls(dt);
+                    this.updateAIOpponent(dt);
+                    this.updateBallPhysics(dt);
+                    this.recordReplayFrame();
+                }
+
+                this.updateParticles(dt);
+                this.updateCameraSystem(dt);
+                this.updateHUD(dt);
+
+                this.renderer.render(this.scene, this.camera);
+                this.compositeRecordingFrame();
+            }
+        }
+
+        // Start simulation on window load
+        window.onload = function () {
+            const game = new CyberPitchGame();
+            game.animate();
+        };
+    </script>
+</body>
+</html>
